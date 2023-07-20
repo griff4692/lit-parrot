@@ -29,7 +29,8 @@ save_interval = 500
 log_interval = 128
 devices = int(os.environ.get('NUM_DEVICES', 2))
 # change this value to force a maximum sequence length
-override_max_seq_length = 2048
+BLOCK_SIZE = 2048
+override_max_seq_length = BLOCK_SIZE
 
 # Hyperparameters
 learning_rate = 3e-3
