@@ -114,7 +114,7 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path):
     fabric.seed_everything(1337 + fabric.global_rank)
 
     train_time = time.time()
-    train(fabric, model, optimizer, train_data, checkpoint_dir, out_dir, speed_monitor)
+    train(fabric, model, optimizer, train_data, out_dir, speed_monitor)
     fabric.print(f"Training time: {(time.time()-train_time):.2f}s")
 
     # Save the final checkpoint at the end of training

@@ -17,7 +17,11 @@ from datasets import load_dataset
 
 
 MAIN_DIR = os.path.expanduser(f"~/lit-parrot")
-CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/tiiuae/falcon-7b"))
+PARROT_MODEL = os.environ['PARROT_MODEL']
+if PARROT_MODEL == 'falcon':
+    CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/tiiuae/falcon-7b"))
+else:
+    CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/meta-llama/Llama-2-7b-hf"))
 IGNORE_INDEX = -1
 MASK_INPUTS = False
 SEED = 42
@@ -39,7 +43,7 @@ def prepare(
         config = json.load(file)
         max_seq_length = config["block_size"]
 
-    destination_path = Path(os.path.join(MAIN_DIR, f"data/{args.dataset}"))
+    destination_path = Path(os.path.join(MAIN_DIR, f"data/{args.dataset}_{PARROT_MODEL}"))
 
     destination_path.mkdir(parents=True, exist_ok=True)
 
