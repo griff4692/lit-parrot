@@ -36,7 +36,7 @@ batch_size = 128 / devices
 micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
-epoch_size = 6000  # train dataset size
+epoch_size = 4000  # train dataset size
 num_epochs = 10
 max_iters = num_epochs * (epoch_size // micro_batch_size) // devices
 weight_decay = 0.02
