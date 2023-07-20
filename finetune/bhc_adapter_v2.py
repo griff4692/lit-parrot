@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 
 import lightning as L
+import numpy as np
 import torch
 from lightning.fabric.strategies import FSDPStrategy, XLAStrategy
 

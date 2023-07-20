@@ -41,7 +41,7 @@ def prepare(
     """
     with open(checkpoint_dir / "lit_config.json", "r") as file:
         config = json.load(file)
-        max_seq_length = config["block_size"]
+        max_seq_length = min(2048, config["block_size"])
 
     destination_path = Path(os.path.join(MAIN_DIR, f"data/{args.dataset}_{PARROT_MODEL}"))
 
