@@ -91,6 +91,7 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path):
     train_data = torch.load(data_dir / "train.pt")
 
     config = Config.from_name(name=checkpoint_dir.name)
+    config.block_size = BLOCK_SIZE
     checkpoint_path = checkpoint_dir / "lit_model.pth"
     fabric.print(f"Loading model {str(checkpoint_path)!r} with {config.__dict__}")
     with fabric.init_module(empty_init=False):
