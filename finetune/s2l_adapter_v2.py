@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 
+import numpy as np
 import lightning as L
 import torch
 from lightning.fabric.strategies import FSDPStrategy, XLAStrategy
