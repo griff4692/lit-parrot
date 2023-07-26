@@ -74,7 +74,7 @@ def prepare(
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
         ), train_set
-    )))
+    ), total=len(train_set)))
 
     train_set = list(filter(None, train_set))
     print(f"train has {len(train_set)}/{n_train} samples after removing too long.")
@@ -89,7 +89,7 @@ def prepare(
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
         ), eval_set
-    )))
+    ), total=len(eval_set)))
     eval_set = list(filter(None, eval_set))
     print(f"train has {len(eval_set)}/{n_test} samples after removing too long.")
     torch.save(eval_set, destination_path / "test.pt")
