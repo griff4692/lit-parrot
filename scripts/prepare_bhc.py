@@ -66,30 +66,30 @@ def prepare(
     print(f"val has {n_test} samples")
 
     print("Processing train split ...")
-    train_set = list(p_uimap(
+    train_set = list(tqdm(map(
         lambda sample:
         prepare_sample(
             example=sample,
             tokenizer=tokenizer,
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
-        ), train_set, num_cpus=0.75
-    ))
+        ), train_set
+    )))
 
     train_set = list(filter(None, train_set))
     print(f"train has {len(train_set)}/{n_train} samples after removing too long.")
     torch.save(train_set, destination_path / "train.pt")
 
     print("Processing test split ...")
-    eval_set = list(p_uimap(
+    eval_set = list(tqdm(map(
         lambda sample:
         prepare_sample(
             example=sample,
             tokenizer=tokenizer,
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
-        ), eval_set, num_cpus=0.75
-    ))
+        ), eval_set
+    )))
     eval_set = list(filter(None, eval_set))
     print(f"train has {len(eval_set)}/{n_test} samples after removing too long.")
     torch.save(eval_set, destination_path / "test.pt")
