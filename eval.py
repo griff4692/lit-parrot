@@ -2,6 +2,7 @@ from collections import defaultdict
 import numpy as np
 import os
 from evaluate import load
+from time import sleep
 from collections import Counter
 from glob import glob
 
@@ -37,7 +38,7 @@ def chatgpt(messages, model='gpt-4', max_tokens=25):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dimension', default='attributable')
+    parser.add_argument('--dimension', default='informative')
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('-overwrite', default=False, action='store_true')
 
@@ -47,10 +48,10 @@ if __name__ == '__main__':
 
     rouge = load('rouge', keep_in_memory=True)
 
-    s2l_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/s2l_falcon/results')
-    length_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/length_falcon/results')
+    s2l_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/s2l_llama/results')
+    length_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/length_llama/results')
 
-    eval_dir = os.path.expanduser(f'~/lit-parrot/out/adapter_v2/{args.dimension}')
+    eval_dir = os.path.expanduser(f'~/lit-parrot/out/adapter_v2/llama_{args.dimension}')
     os.makedirs(eval_dir, exist_ok=True)
 
     print('Reading in dataset...')
@@ -69,11 +70,16 @@ if __name__ == '__main__':
         with open(fn, 'r') as fd:
             pred = fd.read().strip()
             ids_to_preds[id][f'length_{task}'] = pred
-    for id in ids_to_preds:
-        s2l_fn = os.path.join(s2l_dir, f'{id}_summarize.txt')
-        with open(s2l_fn, 'r') as fd:
-            pred = fd.read().strip()
-            ids_to_preds[id]['s2l'] = pred
+    ids = list(ids_to_preds.keys())
+    for id in ids:
+        s2l_fn = os.path.join(s2l_dir, f'{id}_s2l.txt')
+        if os.path.exists(s2l_fn):
+            with open(s2l_fn, 'r') as fd:
+                pred = fd.read().strip().split('\n')[-1]
+                ids_to_preds[id]['s2l'] = pred
+        else:
+            print(f'Missing {s2l_fn}')
+            ids_to_preds.pop(id)
 
     order = [
         's2l',
@@ -149,6 +155,7 @@ if __name__ == '__main__':
             ]
 
             output = chatgpt(messages=messages, model='gpt-4').strip()
+            sleep(1)
             try:
                 output = list(map(int, json.loads(output)))
             except:
