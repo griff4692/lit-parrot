@@ -53,7 +53,7 @@ def prepare(
         eval = dataset['eval']
         train_sets.append(train)
         eval_sets.append(eval)
-    train_set = concatenate_datasets(train_sets).shuffle(seed=1992)
+    train_set = concatenate_datasets(train_sets).shuffle(seed=SEED)
     eval_set = concatenate_datasets(eval_sets)
 
     print("Loading tokenizer...")
