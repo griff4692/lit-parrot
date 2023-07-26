@@ -73,7 +73,7 @@ def prepare(
             tokenizer=tokenizer,
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
-        ), train_set
+        ), train_set, num_cpus=0.75
     ))
 
     train_set = list(filter(None, train_set))
@@ -88,7 +88,7 @@ def prepare(
             tokenizer=tokenizer,
             mask_inputs=mask_inputs,
             ignore_index=ignore_index,
-        ), eval_set
+        ), eval_set, num_cpus=0.75
     ))
     eval_set = list(filter(None, eval_set))
     print(f"train has {len(eval_set)}/{n_test} samples after removing too long.")
