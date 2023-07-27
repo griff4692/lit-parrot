@@ -25,13 +25,12 @@ from lit_gpt.utils import lazy_load, check_valid_checkpoint_dir, step_csv_logger
 from lit_gpt.speed_monitor import SpeedMonitorFabric as SpeedMonitor, measure_flops, estimate_flops
 from scripts.prepare_alpaca import generate_prompt
 
-eval_interval = 1000
 save_interval = 1000
 eval_iters = 100
 log_interval = 64
-devices = 2
+devices = 4
 # change this value to force a maximum sequence length
-BLOCK_SIZE = 3072
+BLOCK_SIZE = 4096
 override_max_seq_length = BLOCK_SIZE
 
 # Hyperparameters
@@ -40,8 +39,8 @@ batch_size = 128 / devices
 micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
-epoch_size = 500000  # train dataset size
-num_epochs = 5
+epoch_size = 1000000  # train dataset size
+num_epochs = 1
 max_iters = num_epochs * (epoch_size // micro_batch_size) // devices
 weight_decay = 0.02
 warmup_steps = 1000  # 2 * (epoch_size // micro_batch_size) // devices // gradient_accumulation_iters  # 2 epochs
@@ -141,8 +140,6 @@ def train(
     tokenizer = Tokenizer(checkpoint_dir)
     max_seq_length, longest_seq_length, longest_seq_ix = get_max_seq_length(train_data)
 
-    validate(fabric, model, val_data, tokenizer, longest_seq_length)  # sanity check
-
     with torch.device("meta"):
         meta_model = GPT(model.config)
         # estimated is too much of an optimistic estimate, left just for reference
@@ -209,50 +206,9 @@ def train(
                 f" {(t1 - iter_t0) * 1000:.2f}ms{' (optimizer.step)' if not is_accumulating else ''}"
             )
 
-        if not is_accumulating and step_count % eval_interval == 0:
-            t0 = time.time()
-            val_loss = validate(fabric, model, val_data, tokenizer, longest_seq_length)
-            t1 = time.time() - t0
-            speed_monitor.eval_end(t1)
-            fabric.print(f"step {iter_num}: val loss {val_loss:.4f}, val time: {t1 * 1000:.2f}ms")
-            fabric.barrier()
         if not is_accumulating and step_count % save_interval == 0:
             checkpoint_path = out_dir / f"iter-{iter_num:06d}-ckpt.pth"
             save_adapter_v2_checkpoint(fabric, model, checkpoint_path)
-
-
-@torch.no_grad()
-def validate(
-    fabric: L.Fabric, model: GPT, val_data: List[Dict], tokenizer: Tokenizer, longest_seq_length: int
-) -> torch.Tensor:
-    fabric.print("Validating ...")
-    model.eval()
-    losses = torch.zeros(eval_iters)
-    for k in range(eval_iters):
-        input_ids, targets = get_batch(fabric, val_data, longest_seq_length)
-        logits = model(input_ids)
-        loss = chunked_cross_entropy(logits, targets, chunk_size=0)
-        losses[k] = loss.item()
-    val_loss = losses.mean()
-
-    # produce an example:
-    instruction = "Recommend a movie for me to watch during the weekend and explain the reason."
-    fabric.print(instruction)
-    sample = {"instruction": instruction, "input": ""}
-    prompt = generate_prompt(sample)
-    encoded = tokenizer.encode(prompt, device=model.device)
-    max_returned_tokens = len(encoded) + 100
-    output = generate(
-        model, idx=encoded, max_returned_tokens=max_returned_tokens, max_seq_length=max_returned_tokens, temperature=0.8
-    )
-    output = tokenizer.decode(output)
-    fabric.print(output)
-
-    model.reset_cache()
-
-    model.train()
-    return val_loss.item()
-
 
 def get_batch(
     fabric: L.Fabric, data: List[Dict], longest_seq_length: int, longest_seq_ix: Optional[int] = None
