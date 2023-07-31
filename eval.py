@@ -75,7 +75,7 @@ if __name__ == '__main__':
     rouge = load('rouge', keep_in_memory=True)
 
     def get_pred(info, id):
-        # ['llama_chat_incr', 's2l_llama_chat', 's2l'],
+        suffix = info[-1]
         fn = 'out/adapter_v2/' + info[1] + f'/results/{id}_{suffix}.txt'
         with open(fn, 'r') as fd:
             pred_lines = fd.readlines()
