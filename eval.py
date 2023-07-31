@@ -105,17 +105,14 @@ if __name__ == '__main__':
         shared_ids.intersection(set([x[0] for x in experiment_fns[i]]))
 
     shared_ids = list(sorted(list(shared_ids)))
+    assert len(shared_ids) >= args.max_examples
 
-    for id in tqdm(shared_ids):
-        preds = [
-            get_pred(info, id) for info in EXPERIMENTS
-        ]
-
-        print(preds)
-        raise
+    if len(shared_ids) > args.max_examples:
+        np.random.seed(1992)
+        np.random.shuffle(shared_ids)
+        shared_ids = shared_ids[:args.max_examples]
 
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
-
     os.makedirs(eval_dir, exist_ok=True)
 
     print('Reading in dataset...')
@@ -127,59 +124,27 @@ if __name__ == '__main__':
     id2article = dict(zip(dataset['id'], dataset['article']))
     id2reference = dict(zip(dataset['id'], dataset['highlights']))
 
-    fns = list(glob(length_dir + '/*.txt'))
-    ids_to_preds = defaultdict(dict)
-    for fn in fns:
-        id, task = fn.replace('.txt', '').split('/')[-1].split('_')
-        with open(fn, 'r') as fd:
-            pred = fd.read().strip()
-            ids_to_preds[id][f'length_{task}'] = pred
-    ids = list(ids_to_preds.keys())
-    for id in ids:
-        s2l_fn = os.path.join(s2l_dir, f'{id}_s2l.txt')
-        if os.path.exists(s2l_fn):
-            with open(s2l_fn, 'r') as fd:
-                pred = fd.read().strip().split('\n')[-1]
-                ids_to_preds[id]['s2l'] = pred
-        else:
-            print(f'Missing {s2l_fn}')
-            ids_to_preds.pop(id)
-
-    order = [
-        's2l',
-        'length_1',
-        'length_2',
-        'length_3',
-        'length_4',
-    ]
-
     top_ranked = []
 
     avg_rank = {}
     tokens = {}
     rouges = {}
-    for x in order:
-        tokens[x] = []
-        avg_rank[x] = []
-        rouges[x] = []
+    for x in EXPERIMENTS:
+        tokens[x[0]] = []
+        avg_rank[x[0]] = []
+        rouges[x[0]] = []
 
-    for id in ids_to_preds:
+    for id in tqdm(shared_ids):
         out_fn = os.path.join(eval_dir, f'{id}.json')
         reference = id2reference[id]
 
         predictions = [
-            ids_to_preds[id][task] for task in order
+            get_pred(info, id) for info in EXPERIMENTS
         ]
 
-        for pred, type in zip(predictions, order):
+        for pred, type in zip(predictions, EXPERIMENTS):
             r1 = rouge.compute(predictions=[pred], references=[reference], rouge_types=['rouge1'])['rouge1']
-            rouges[type].append(r1)
-
-        print('S2L:', predictions[0])
-        print('Length 1:', predictions[1])
-        print('Length 2:', predictions[2])
-        print('Length 3:', predictions[3])
-        print('Length 4:', predictions[4])
+            rouges[type[0]].append(r1)
 
         token_cts = [
             len(word_tokenize(x)) for x in predictions
@@ -200,11 +165,11 @@ if __name__ == '__main__':
                 print('Truncating...')
                 article = ' '.join(article.split(' ')[:2048])
 
-            rand_order = np.arange(len(order))
+            rand_order = np.arange(len(EXPERIMENTS))
             np.random.shuffle(rand_order)
 
             shuffled_predictions = [predictions[i] for i in rand_order]
-            shuffled_order = [order[i] for i in rand_order]
+            shuffled_order = [EXPERIMENTS[i][0] for i in rand_order]
 
             type_map = {i + 1: t for i, t in enumerate(shuffled_order)}
 
