@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--max_article_toks', default=2048, type=int)
-    parser.add_argument('--max_new_tokens', default=160, type=int)
+    parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=1000, type=int)
