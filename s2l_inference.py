@@ -60,15 +60,17 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
     max_new_tokens = max_new_tokens if max_new_tokens is not None else args.max_new_tokens
 
     if args.base == 'falcon':
+        max_seq_length = 2048
         max_returned_tokens = min(2048, prompt_length + max_new_tokens)
     else:
+        max_seq_length = 4096
         max_returned_tokens = min(4096, prompt_length + max_new_tokens)
 
     y = generate(
         model,
         encoded,
         max_returned_tokens,
-        max_seq_length=max_returned_tokens,
+        max_seq_length=max_seq_length,
         temperature=args.temperature,
         eos_id=tokenizer.eos_id,
     )
