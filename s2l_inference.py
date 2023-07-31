@@ -77,15 +77,22 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--adapter_path', default='out/adapter_v2/s2l')
-    parser.add_argument('--checkpoint_dir', default='checkpoints/meta-llama/Llama-2-7b-chat-hf')
     parser.add_argument('--devices', default=1, type=int)
-    parser.add_argument('--max_article_toks', default=1024, type=int)
+    parser.add_argument('--max_article_toks', default=2048, type=int)
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=1000, type=int)
 
     args = parser.parse_args()
+
+    if 'chat' in args.adapter_path and 'llama' in args.adapter_path:
+        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
+    elif 'llama' in args.adapter_path:
+        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
+    else:
+        args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
+    print(f'Inferring checkpoint dir of {args.checkpoint_dir}')
 
     torch.set_float32_matmul_precision("high")
 

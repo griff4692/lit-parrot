@@ -3,6 +3,7 @@
 set -e
 
 DATA_DIR="/nlp/data/cdr/epic_docs_2020_20230625/llama_data"
+DATA_DIR="/home/ga2530/bhc_llama_dataset"
 CKPT_DIR="checkpoints/meta-llama/Llama-2-7b-hf"
 OUT_DIR="out/adapter_v2/bhc_llama"
 

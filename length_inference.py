@@ -76,7 +76,6 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--adapter_path', default=Path('out/adapter_v2/length'))
-    parser.add_argument('--checkpoint_dir', default=Path('checkpoints/meta-llama/Llama-2-7b-chat-hf'))
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--max_article_toks', default=1024, type=int)
     parser.add_argument('--max_new_tokens', default=368, type=int)
@@ -85,6 +84,13 @@ if __name__ == '__main__':
     parser.add_argument('--max_examples', default=1000, type=int)
 
     args = parser.parse_args()
+
+    if 'chat' in args.adapter_path and 'llama' in args.adapter_path:
+        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
+    elif 'llama' in args.adapter_path:
+        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
+    else:
+        args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
 
     args.adapter_path = Path(args.adapter_path)
     args.checkpoint_dir = Path(args.checkpoint_dir)

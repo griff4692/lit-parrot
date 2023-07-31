@@ -26,9 +26,8 @@ from lit_gpt.speed_monitor import SpeedMonitorFabric as SpeedMonitor, measure_fl
 from scripts.prepare_alpaca import generate_prompt
 
 save_interval = 1000
-eval_iters = 100
-log_interval = 64
-devices = 4
+log_interval = 128
+devices = 1
 # change this value to force a maximum sequence length
 BLOCK_SIZE = 4096
 override_max_seq_length = BLOCK_SIZE
@@ -40,7 +39,7 @@ micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 epoch_size = 1000000  # train dataset size
-num_epochs = 1
+num_epochs = 5
 max_iters = num_epochs * (epoch_size // micro_batch_size) // devices
 weight_decay = 0.02
 warmup_steps = 1000  # 2 * (epoch_size // micro_batch_size) // devices // gradient_accumulation_iters  # 2 epochs
