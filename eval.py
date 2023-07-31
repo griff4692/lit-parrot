@@ -85,7 +85,7 @@ if __name__ == '__main__':
     ]
 
     print([
-        (EXPERIMENTS[i][0], len(fns[i])) for i in range(len(experiment_fns))
+        (EXPERIMENTS[i][0], len(experiment_fns[i])) for i in range(len(experiment_fns))
     ])
 
     shared_ids = set([x[0] for x in experiment_fns[0]])
