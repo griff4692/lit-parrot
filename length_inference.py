@@ -26,6 +26,7 @@ from generate.base import generate
 from lit_gpt import Tokenizer
 from lit_gpt.adapter import Block
 from lit_gpt.adapter import GPT, Config
+from lit_gpt import GPT, Config as BaseGPT, BaseConfig
 from lit_gpt.adapter_v2 import add_adapter_v2_parameters_to_linear_layers
 from lit_gpt.utils import lazy_load, quantization
 
@@ -111,8 +112,12 @@ if __name__ == '__main__':
     fabric = L.Fabric(devices=args.devices, precision=args.precision, strategy=strategy)
     fabric.launch()
 
-    with open(args.checkpoint_dir / "lit_config.json") as fp:
-        config = Config(**json.load(fp))
+    if adapter_path is None:
+        with open(args.checkpoint_dir / "lit_config.json") as fp:
+            config = BaseConfig(**json.load(fp))
+    else:
+        with open(args.checkpoint_dir / "lit_config.json") as fp:
+            config = Config(**json.load(fp))
 
     model_file = "lit_model.pth"
     checkpoint_path = args.checkpoint_dir / model_file
@@ -120,8 +125,10 @@ if __name__ == '__main__':
     fabric.print(f"Loading model {str(checkpoint_path)!r} with {config.__dict__}", file=sys.stderr)
     t0 = time.time()
     with fabric.init_module(empty_init=True), quantization(None):
-        model = GPT(config)
-        if adapter_path is not None:
+        if adapter_path is None:
+            model = BaseGPT(config)
+        else:
+            model = GPT(config)
             add_adapter_v2_parameters_to_linear_layers(model)
     fabric.print(f"Time to instantiate model: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
