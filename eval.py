@@ -203,6 +203,10 @@ if __name__ == '__main__':
         for type, arr in rouges.items():
             print(type + ' -> ROUGE1 ', str(np.mean(arr)))
 
-    print('Tokens...')
+    print('Final Tokens and ROUGES...')
     for task, cts in tokens.items():
-        print(task + '\t' + str(np.mean(cts)))
+        print(task + '\t' + str(np.mean(cts)) + '\t' + np.mean(rouges[task]))
+
+    print('Tokens and Rankings...')
+    for task, cts in tokens.items():
+        print(task + '\t' + str(np.mean(cts)) + '\t' + np.mean(avg_rank[task]))
