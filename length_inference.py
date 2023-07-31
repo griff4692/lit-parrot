@@ -86,7 +86,6 @@ if __name__ == '__main__':
     parser.add_argument('--adapter_path', default=None)
     parser.add_argument('--base', default='llama')
     parser.add_argument('--devices', default=1, type=int)
-    parser.add_argument('--max_article_toks', default=2048, type=int)
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
@@ -96,10 +95,13 @@ if __name__ == '__main__':
 
     if args.base == 'llama':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
+        args.max_article_toks = 2048
     elif args.base == 'llama_chat':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
+        args.max_article_toks = 2048
     else:
         args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
+        args.max_article_toks = 1024
     print(f'Inferring checkpoint dir of {args.checkpoint_dir}')
 
     args.checkpoint_dir = Path(args.checkpoint_dir)

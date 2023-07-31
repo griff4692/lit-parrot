@@ -87,7 +87,6 @@ if __name__ == '__main__':
     parser.add_argument('--adapter_path', default=None)
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
-    parser.add_argument('--max_article_toks', default=2048, type=int)
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
@@ -97,10 +96,14 @@ if __name__ == '__main__':
 
     if args.base == 'llama':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
+        args.max_article_toks = 2048
     elif args.base == 'llama_chat':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
+        args.max_article_toks = 2048
     else:
         args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
+        args.max_article_toks = 1024
+
     print(f'Inferring checkpoint dir of {args.checkpoint_dir}')
 
     args.checkpoint_dir = Path(args.checkpoint_dir)
@@ -172,7 +175,12 @@ if __name__ == '__main__':
 
         summarize_input = f'Article: {article}'
         summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['vanilla']}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
-        prediction = get_completion(args, model, tokenizer, summarze_prompt)
+
+        try:
+            prediction = get_completion(args, model, tokenizer, summarze_prompt)
+        except Exception as e:
+            print(e)
+            continue
 
         fabric.print(prediction)
 
