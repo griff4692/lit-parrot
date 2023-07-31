@@ -89,7 +89,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
-    parser.add_argument('--max_examples', default=1000, type=int)
+    parser.add_argument('--max_examples', default=100, type=int)
 
     args = parser.parse_args()
 

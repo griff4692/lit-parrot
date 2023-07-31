@@ -88,7 +88,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
-    parser.add_argument('--max_examples', default=1000, type=int)
+    parser.add_argument('--max_examples', default=100, type=int)
+    parser.add_argument('-overwrite', default=False, action='store_true')
 
     args = parser.parse_args()
 
@@ -172,6 +173,14 @@ if __name__ == '__main__':
         tldr_input = f'Article: {article}'
         tldr_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['tldr']}\n\n### Input:\n{tldr_input}\n\n### Response:\n"
 
+        out_fn = os.path.join(results_dir, f'{id}_s2l.txt')
+        if os.path.exists(out_fn):
+            if args.overwrite:
+                print(f'Overwriting {out_fn}')
+            else:
+                print(f'Skipping {out_fn}...')
+                continue
+
         try:
             progressive_predictions = [get_completion(args, model, tokenizer, tldr_prompt)]
             cot = set()
@@ -206,7 +215,6 @@ if __name__ == '__main__':
                 prediction = pred_lines[1].replace('SUMMARY V2:', '').strip()
                 progressive_predictions.append(prediction)
             fabric.print(progressive_predictions[-1])
-            out_fn = os.path.join(results_dir, f'{id}_s2l.txt')
             with open(out_fn, 'w') as fd:
                 fd.write('\n'.join(progressive_predictions))
         except Exception as msg:
