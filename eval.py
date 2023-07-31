@@ -205,8 +205,8 @@ if __name__ == '__main__':
 
     print('Final Tokens and ROUGES...')
     for task, cts in tokens.items():
-        print(task + '\t' + str(np.mean(cts)) + '\t' + np.mean(rouges[task]))
+        print(task + '\t' + str(np.mean(cts)) + '\t' + str(np.mean(rouges[task])))
 
     print('Tokens and Rankings...')
     for task, cts in tokens.items():
-        print(task + '\t' + str(np.mean(cts)) + '\t' + np.mean(avg_rank[task]))
+        print(task + '\t' + str(np.mean(cts)) + '\t' + str(np.mean(avg_rank[task])))
