@@ -78,6 +78,13 @@ if __name__ == '__main__':
     fns = [
         get_fns(info) for info in EXPERIMENTS
     ]
+
+    print([
+        len(x) for x in fns
+    ])
+
+    raise
+
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
 
     os.makedirs(eval_dir, exist_ok=True)
