@@ -5,6 +5,7 @@ from evaluate import load
 from time import sleep
 from collections import Counter
 from glob import glob
+from tqdm import tqdm
 
 from datasets import load_dataset
 from nltk import word_tokenize
