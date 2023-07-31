@@ -12,10 +12,10 @@ import json
 import openai
 import backoff
 
-# from oa_secrets import OA_KEY, OA_ORGANIZATION
+from oa_secrets import OA_KEY, OA_ORGANIZATION
 
-# openai.organization = OA_ORGANIZATION
-# openai.api_key = OA_KEY
+openai.organization = OA_ORGANIZATION
+openai.api_key = OA_KEY
 
 
 EXPERIMENTS = [
@@ -80,10 +80,8 @@ if __name__ == '__main__':
     ]
 
     print([
-        len(x) for x in fns
+        (EXPERIMENTS[i], len(fns[i])) for i in range(len(fns))
     ])
-
-    raise
 
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
 
