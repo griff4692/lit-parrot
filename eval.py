@@ -184,7 +184,7 @@ if __name__ == '__main__':
             ]
 
             output = chatgpt(messages=messages, model='gpt-4').strip()
-            sleep(1)
+            sleep(3)
             try:
                 output = list(map(int, json.loads(output)))
             except:
