@@ -150,8 +150,8 @@ if __name__ == '__main__':
             len(word_tokenize(x)) for x in predictions
         ]
 
-        for task, ct in zip(order, token_cts):
-            tokens[task].append(ct)
+        for task, ct in zip(EXPERIMENTS, token_cts):
+            tokens[task[0]].append(ct)
 
         if os.path.exists(out_fn) and not overwrite:
             with open(out_fn) as fd:
