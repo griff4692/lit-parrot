@@ -18,6 +18,28 @@ openai.organization = OA_ORGANIZATION
 openai.api_key = OA_KEY
 
 
+EXPERIMENTS = [
+    ['llama_chat_incr', 's2l_llama_chat', 's2l'],
+    ['llama_chat_straight', 's2l_llama_chat', 'summarize'],
+    ['llama_incr', 's2l_llama', 's2l'],
+    ['llama_straight', 's2l_llama', 'summarize'],
+    ['falcon_incr', 's2l_falcon', 's2l'],
+    ['falcon_straight', 's2l_falcon', 'summarize'],
+    ['llama_chat_1', 'length_llama_chat', '1'],
+    ['llama_chat_2', 'length_llama_chat', '2'],
+    ['llama_chat_3', 'length_llama_chat', '3'],
+    ['llama_chat_4', 'length_llama_chat', '4'],
+    ['llama_1', 'length_llama', '1'],
+    ['llama_2', 'length_llama', '2'],
+    ['llama_3', 'length_llama', '3'],
+    ['llama_4', 'length_llama', '4'],
+    ['falcon_1', 'length_falcon', '1'],
+    ['falcon_2', 'length_falcon', '2'],
+    ['falcon_3', 'length_falcon', '3'],
+    ['falcon_4', 'length_falcon', '4'],
+]
+
+
 PREFIX = 'Here is an Article along with several possible summaries for the article.'
 SUFFIXES = {
     'informative': 'Please rank the summaries from best to worst with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a JSON list of integers.',
@@ -40,6 +62,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dimension', default='informative')
     parser.add_argument('--dataset', default='cnn')
+    parser.add_argument('--experiment', default='default')
     parser.add_argument('-overwrite', default=False, action='store_true')
 
     args = parser.parse_args()
@@ -48,10 +71,15 @@ if __name__ == '__main__':
 
     rouge = load('rouge', keep_in_memory=True)
 
-    s2l_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/s2l_llama/results')
-    length_dir = os.path.expanduser('~/lit-parrot/out/adapter_v2/length_llama/results')
+    def get_fns(info):
+        suffix = info[-1]
+        return list(glob('out/adapter_v2/' + info[1] + f'/results/*{suffix}.txt'))
 
-    eval_dir = os.path.expanduser(f'~/lit-parrot/out/adapter_v2/llama_{args.dimension}')
+    fns = [
+        get_fns(info) for info in EXPERIMENTS
+    ]
+    eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
+
     os.makedirs(eval_dir, exist_ok=True)
 
     print('Reading in dataset...')
