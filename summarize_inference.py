@@ -55,7 +55,7 @@ def get_latest_file(directory):
         return None
 
 
-def get_completion(args, model, tokenizer, prompt):
+def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
     encoded = tokenizer.encode(prompt, device=model.device)
     prompt_length = encoded.size(0)
     max_new_tokens = max_new_tokens if max_new_tokens is not None else args.max_new_tokens
