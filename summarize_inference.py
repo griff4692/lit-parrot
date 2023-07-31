@@ -76,10 +76,11 @@ def get_completion(args, model, tokenizer, prompt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
-    parser.add_argument('--adapter_path', default='out/adapter_v2/s2l')
+    parser.add_argument('--base', default='llama')
+    parser.add_argument('--adapter_path', default=None)
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
-    parser.add_argument('--max_article_toks', default=1024, type=int)
+    parser.add_argument('--max_article_toks', default=2048, type=int)
     parser.add_argument('--max_new_tokens', default=160, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
@@ -87,23 +88,25 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if 'chat' in args.adapter_path and 'llama' in args.adapter_path:
-        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
-    elif 'llama' in args.adapter_path:
+    if args.base == 'llama':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
+    elif args.base == 'llama_chat':
+        args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
     else:
         args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
     print(f'Inferring checkpoint dir of {args.checkpoint_dir}')
 
-    args.adapter_path = Path(args.adapter_path)
     args.checkpoint_dir = Path(args.checkpoint_dir)
-    
     torch.set_float32_matmul_precision("high")
 
-    results_dir = os.path.join(args.adapter_path, 'results')
+    if args.adapter_path is None:
+        adapter_path = None
+        results_dir = os.path.join('out', args.base)
+    else:
+        args.adapter_path = Path(args.adapter_path)
+        adapter_path = get_latest_file(args.adapter_path)
+        results_dir = os.path.join(args.adapter_path, 'results')
     os.makedirs(results_dir, exist_ok=True)
-
-    adapter_path = get_latest_file(args.adapter_path)
 
     auto_wrap_policy = partial(transformer_auto_wrap_policy, transformer_layer_cls={Block})
     strategy = FSDPStrategy(auto_wrap_policy=auto_wrap_policy, cpu_offload=False)
@@ -117,16 +120,22 @@ if __name__ == '__main__':
     checkpoint_path = args.checkpoint_dir / model_file
 
     fabric.print(f"Loading model {str(checkpoint_path)!r} with {config.__dict__}", file=sys.stderr)
+
     t0 = time.time()
     with fabric.init_module(empty_init=True), quantization(None):
         model = GPT(config)
-        add_adapter_v2_parameters_to_linear_layers(model)
+        if adapter_path is not None:
+            add_adapter_v2_parameters_to_linear_layers(model)
     fabric.print(f"Time to instantiate model: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
     t0 = time.time()
-    with lazy_load(checkpoint_path) as checkpoint, lazy_load(adapter_path) as adapter_checkpoint:
-        checkpoint.update(adapter_checkpoint.get("model", adapter_checkpoint))
-        model.load_state_dict(checkpoint, strict=True)
+    if adapter_path is None:
+        with lazy_load(checkpoint_path) as checkpoint:
+            model.load_state_dict(checkpoint.get("model", checkpoint), strict=True)
+    else:
+        with lazy_load(checkpoint_path) as checkpoint, lazy_load(adapter_path) as adapter_checkpoint:
+            checkpoint.update(adapter_checkpoint.get("model", adapter_checkpoint))
+            model.load_state_dict(checkpoint, strict=True)
     fabric.print(f"Time to load the model weights: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
     model.eval()
