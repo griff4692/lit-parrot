@@ -52,7 +52,7 @@ SUFFIXES = {
 
 
 @backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.APIError), max_tries=25)
-def chatgpt(messages, model='gpt-4', max_tokens=25):
+def chatgpt(messages, model='gpt-4', max_tokens=64):
     response = openai.ChatCompletion.create(
         model=model, messages=messages, temperature=0.0, max_tokens=max_tokens
     )
