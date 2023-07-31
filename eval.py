@@ -46,6 +46,7 @@ SUFFIXES = {
     'quality': 'Please rank the summaries from best to worst with respect to quality. A high quality summary is comprehensible and understandable. Return a JSON list of integers.',
     'attributable': 'Please rank the summaries from best to worst with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a JSON list of integers.',
     'concise': 'Please rank the summaries from best to worst with respect to conciseness. A concise summary gets straight to the point and does not include extraneous details. Return a JSON list of integers.',
+    'redundancy': 'Please rank the summaries from best to worst with respect to non-redundancy. A non-redundant summary contains does not repeat a fact more than once. Return a JSON list of integers.',
 }
 
 
@@ -73,15 +74,28 @@ if __name__ == '__main__':
 
     def get_fns(info):
         suffix = info[-1]
-        return list(glob('out/adapter_v2/' + info[1] + f'/results/*{suffix}.txt'))
+        fns = list(glob('out/adapter_v2/' + info[1] + f'/results/*{suffix}.txt'))
+        ids = [
+            fn.split('/')[-1].replace('.txt', '').split('_')[0] for fn in fns
+        ]
+        return list(zip(ids, fns))
 
-    fns = [
+    experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
     ]
 
     print([
         (EXPERIMENTS[i][0], len(fns[i])) for i in range(len(fns))
     ])
+
+    shared_ids = set([x[0] for x in fns[0]])
+    for i in range(2, len(fns)):
+        shared_ids.intersection(set([x[0] for x in fns[i]]))
+
+    shared_ids = list(sorted(list(shared_ids)))
+
+    print(len(shared_ids))
+    raise
 
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
 
