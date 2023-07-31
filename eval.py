@@ -80,7 +80,7 @@ if __name__ == '__main__':
     ]
 
     print([
-        (EXPERIMENTS[i], len(fns[i])) for i in range(len(fns))
+        (EXPERIMENTS[i][0], len(fns[i])) for i in range(len(fns))
     ])
 
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
