@@ -85,12 +85,12 @@ if __name__ == '__main__':
     ]
 
     print([
-        (EXPERIMENTS[i][0], len(fns[i])) for i in range(len(fns))
+        (EXPERIMENTS[i][0], len(fns[i])) for i in range(len(experiment_fns))
     ])
 
-    shared_ids = set([x[0] for x in fns[0]])
-    for i in range(2, len(fns)):
-        shared_ids.intersection(set([x[0] for x in fns[i]]))
+    shared_ids = set([x[0] for x in experiment_fns[0]])
+    for i in range(2, len(experiment_fns)):
+        shared_ids.intersection(set([x[0] for x in experiment_fns[i]]))
 
     shared_ids = list(sorted(list(shared_ids)))
 
