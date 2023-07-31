@@ -65,12 +65,23 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--experiment', default='default')
     parser.add_argument('-overwrite', default=False, action='store_true')
+    parser.add_argument('--max_examples', default=25, type=int)
 
     args = parser.parse_args()
 
     overwrite = args.overwrite
 
     rouge = load('rouge', keep_in_memory=True)
+
+    def get_pred(info, id):
+        # ['llama_chat_incr', 's2l_llama_chat', 's2l'],
+        fn = 'out/adapter_v2/' + info[1] + f'/results/{id}_{suffix}.txt'
+        with open(fn, 'r') as fd:
+            pred_lines = fd.readlines()
+        pred_lines = [
+            x.strip() for x in pred_lines if len(x.strip()) > 0
+        ]
+        return pred_lines[-1]
 
     def get_fns(info):
         suffix = info[-1]
@@ -94,8 +105,13 @@ if __name__ == '__main__':
 
     shared_ids = list(sorted(list(shared_ids)))
 
-    print(len(shared_ids))
-    raise
+    for id in tqdm(shared_ids):
+        preds = [
+            get_pred(info, id) for info in EXPERIMENTS
+        ]
+
+        print(preds)
+        raise
 
     eval_dir = os.path.expanduser(f'~/lit-parrot/out/eval/{args.experiment}/{args.dimension}')
 
