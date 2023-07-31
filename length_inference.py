@@ -26,7 +26,8 @@ from generate.base import generate
 from lit_gpt import Tokenizer
 from lit_gpt.adapter import Block
 from lit_gpt.adapter import GPT, Config
-from lit_gpt import GPT, Config as BaseGPT, BaseConfig
+from lit_gpt import GPT as BaseGPT
+from lit_gpt import Config as BaseConfig
 from lit_gpt.adapter_v2 import add_adapter_v2_parameters_to_linear_layers
 from lit_gpt.utils import lazy_load, quantization
 
