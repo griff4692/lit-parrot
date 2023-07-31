@@ -24,7 +24,7 @@ EXPERIMENTS = [
     ['llama_chat_straight', 's2l_llama_chat', 'summarize'],
     ['llama_incr', 's2l_llama', 's2l'],
     ['llama_straight', 's2l_llama', 'summarize'],
-    ['falcon_incr', 's2l_falcon', 's2l'],
+    # ['falcon_incr', 's2l_falcon', 's2l'],
     ['falcon_straight', 's2l_falcon', 'summarize'],
     ['llama_chat_1', 'length_llama_chat', '1'],
     ['llama_chat_2', 'length_llama_chat', '2'],
