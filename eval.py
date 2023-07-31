@@ -12,10 +12,10 @@ import json
 import openai
 import backoff
 
-from oa_secrets import OA_KEY, OA_ORGANIZATION
+# from oa_secrets import OA_KEY, OA_ORGANIZATION
 
-openai.organization = OA_ORGANIZATION
-openai.api_key = OA_KEY
+# openai.organization = OA_ORGANIZATION
+# openai.api_key = OA_KEY
 
 
 EXPERIMENTS = [
