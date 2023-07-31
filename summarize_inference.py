@@ -58,7 +58,11 @@ def get_latest_file(directory):
 def get_completion(args, model, tokenizer, prompt):
     encoded = tokenizer.encode(prompt, device=model.device)
     prompt_length = encoded.size(0)
-    max_returned_tokens = min(2048, prompt_length + args.max_new_tokens)
+
+    if args.base == 'falcon':
+        max_returned_tokens = min(2048, prompt_length + max_new_tokens)
+    else:
+        max_returned_tokens = min(4096, prompt_length + max_new_tokens)
 
     y = generate(
         model,
