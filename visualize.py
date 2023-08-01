@@ -51,7 +51,11 @@ if __name__ == '__main__':
 
     def get_fns(info):
         suffix = info[-1]
-        return list(glob('out/adapter_v2/' + info[1] + '/' + f'/*{suffix}.txt'))
+        fns = list(glob('out/adapter_v2/' + info[1] + f'/results/*{suffix}.txt'))
+        ids = [
+            fn.split('/')[-1].replace('.txt', '').split('_')[0] for fn in fns
+        ]
+        return list(zip(ids, fns))
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
