@@ -87,6 +87,6 @@ if __name__ == '__main__':
 
         vis.append('\n'.join(predictions))
 
-    vis = '\n\n' + '*' * 50 + '\n\n'
+    vis = ('\n\n' + '*' * 50 + '\n\n').join(vis)
 
     print(vis)
