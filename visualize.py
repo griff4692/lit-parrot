@@ -29,6 +29,9 @@ def get_pred(info, id):
     pred_lines = [
         x.strip() for x in pred_lines if len(x.strip()) > 0
     ]
+    for i, pred in enumerate(pred_lines):
+        if 'MISSING' in pred:
+            pred_lines[i] = '\n' + pred_lines[i]
     return '\n'.join(pred_lines)
     # return pred_lines[-1]
 
