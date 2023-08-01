@@ -29,7 +29,8 @@ def get_pred(info, id):
     pred_lines = [
         x.strip() for x in pred_lines if len(x.strip()) > 0
     ]
-    return pred_lines[-1]
+    return '\n'.join(pred_lines)
+    # return pred_lines[-1]
 
 
 if __name__ == '__main__':
@@ -82,11 +83,11 @@ if __name__ == '__main__':
         reference = id2reference[id]
 
         predictions = [
-            info[0] + ': ' + get_pred(info, id) for info in EXPERIMENTS
+            info[0] + ':\n' + get_pred(info, id) for info in EXPERIMENTS
         ]
 
-        vis.append('\n'.join(predictions))
+        vis.append('\n\n\n'.join(predictions))
 
-    vis = ('\n\n' + '*' * 50 + '\n\n').join(vis)
+    vis = ('\n\n\n' + '*' * 50 + '\n\n\n').join(vis)
 
     print(vis)
