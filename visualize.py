@@ -78,7 +78,7 @@ if __name__ == '__main__':
         shared_ids = shared_ids[:args.max_examples]
 
     vis = []
-    for id in tqdm(shared_ids):
+    for id in shared_ids:
         reference = id2reference[id]
 
         predictions = [
