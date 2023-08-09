@@ -20,24 +20,24 @@ openai.api_key = OA_KEY
 
 
 EXPERIMENTS = [
-    ['llama_chat_incr', 's2l_llama_chat', 's2l'],
-    ['llama_chat_straight', 's2l_llama_chat', 'summarize'],
+    # ['llama_chat_incr', 's2l_llama_chat', 's2l'],
+    # ['llama_chat_straight', 's2l_llama_chat', 'summarize'],
     ['llama_incr', 's2l_llama', 's2l'],
     ['llama_straight', 's2l_llama', 'summarize'],
     # ['falcon_incr', 's2l_falcon', 's2l'],
-    ['falcon_straight', 's2l_falcon', 'summarize'],
-    ['llama_chat_1', 'length_llama_chat', '1'],
-    ['llama_chat_2', 'length_llama_chat', '2'],
-    ['llama_chat_3', 'length_llama_chat', '3'],
-    ['llama_chat_4', 'length_llama_chat', '4'],
+    # ['falcon_straight', 's2l_falcon', 'summarize'],
+    # ['llama_chat_1', 'length_llama_chat', '1'],
+    # ['llama_chat_2', 'length_llama_chat', '2'],
+    # ['llama_chat_3', 'length_llama_chat', '3'],
+    # ['llama_chat_4', 'length_llama_chat', '4'],
     ['llama_1', 'length_llama', '1'],
     ['llama_2', 'length_llama', '2'],
     ['llama_3', 'length_llama', '3'],
     ['llama_4', 'length_llama', '4'],
-    ['falcon_1', 'length_falcon', '1'],
-    ['falcon_2', 'length_falcon', '2'],
-    ['falcon_3', 'length_falcon', '3'],
-    ['falcon_4', 'length_falcon', '4'],
+    # ['falcon_1', 'length_falcon', '1'],
+    # ['falcon_2', 'length_falcon', '2'],
+    # ['falcon_3', 'length_falcon', '3'],
+    # ['falcon_4', 'length_falcon', '4'],
 ]
 
 

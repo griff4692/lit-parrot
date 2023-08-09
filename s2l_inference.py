@@ -4,7 +4,7 @@ import os
 import json
 import sys
 import time
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from functools import partial
 from pathlib import Path
 from typing import Literal
@@ -83,13 +83,14 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--base', default='llama')
-    parser.add_argument('--adapter_path', default=None)
+    parser.add_argument('--adapter_path', default='out/adapter_v2/s2l_llama')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--max_new_tokens', default=368, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=100, type=int)
     parser.add_argument('-overwrite', default=False, action='store_true')
+    parser.add_argument('--dataset', default='cnn')
 
     args = parser.parse_args()
 
@@ -111,9 +112,9 @@ if __name__ == '__main__':
 
     if args.adapter_path is None:
         adapter_path = None
-        results_dir = os.path.join('out', args.base)
+        results_dir = os.path.join('out', args.base, args.dataset)
     else:
-        results_dir = os.path.join(args.adapter_path, 'results')
+        results_dir = os.path.join(args.adapter_path, 'results', args.dataset)
         args.adapter_path = Path(args.adapter_path)
         adapter_path = get_latest_file(args.adapter_path)
     os.makedirs(results_dir, exist_ok=True)
@@ -154,7 +155,18 @@ if __name__ == '__main__':
     tokenizer = Tokenizer(args.checkpoint_dir)
 
     print('Reading in dataset...')
-    dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
+    print('Reading in dataset...')
+    if args.dataset == 'cnn':
+        dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
+    elif args.dataset == 'xsum':
+        dataset = load_dataset(args.dataset, split='test')
+    else:
+        dataset = load_from_disk(os.path.expanduser('~/nyt_edu_alignments'))['test']
+        dataset = dataset.rename_columns({
+            'article_untok': 'document',
+            'abstract_untok': 'summary'
+        })
+
     n = len(dataset)
     if n > args.max_examples:
         np.random.seed(1992)
@@ -164,7 +176,7 @@ if __name__ == '__main__':
     for example in tqdm(dataset, total=len(dataset)):
         progressive_predictions = []
         id = example['id']
-        article = example['article']
+        article = example.get('article', example['document'])
         article_toks = article.split(' ')
         n = len(article_toks)
         if n > args.max_article_toks:
