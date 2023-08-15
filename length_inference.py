@@ -22,7 +22,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from generate.base import generate
+from generate.base import generate, remove_trailing_sent_frag
 from lit_gpt import Tokenizer
 from lit_gpt.adapter import Block
 from lit_gpt.adapter import GPT, Config
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--base', default='llama')
     parser.add_argument('--adapter_path', default='out/adapter_v2/length_llama')
     parser.add_argument('--devices', default=1, type=int)
-    parser.add_argument('--max_new_tokens', default=368, type=int)
+    parser.add_argument('--max_new_tokens', default=320, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=100, type=int)
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     model = fabric.setup(model)
     tokenizer = Tokenizer(args.checkpoint_dir)
 
-    print('Reading in dataset...')
+    print(args.max_new_tokens)
     print('Reading in dataset...')
     if args.dataset == 'cnn':
         dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     for example in tqdm(dataset, total=len(dataset)):
         progressive_predictions = []
         id = example['id']
-        article = example.get('article', example['document'])
+        article = example['article'] if 'article' in example else example['document']
         article_toks = article.split(' ')
         n = len(article_toks)
         if n > args.max_article_toks:
@@ -187,7 +187,7 @@ if __name__ == '__main__':
         input = f'Article: {article}'
         for i in range(1, 5):
             prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS[str(i)]}\n\n### Input:\n{input}\n\n### Response:\n"
-            prediction = get_completion(args, model, tokenizer, prompt)
+            prediction = remove_trailing_sent_frag(get_completion(args, model, tokenizer, prompt, args.max_new_tokens))
             out_fn = os.path.join(results_dir, f'{id}_{i}.txt')
             with open(out_fn, 'w') as fd:
                 fd.write(prediction)

@@ -8,7 +8,6 @@ import math
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
 import openai
-from transformers import pipeline
 from evaluate import load
 import numpy as np
 import json
@@ -68,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--experiment', default='default')
     parser.add_argument('-overwrite', default=False, action='store_true')
-    parser.add_argument('--max_examples', default=20, type=int)
+    parser.add_argument('--max_examples', default=100, type=int)
     parser.add_argument('--device', default=1, type=int)
 
     args = parser.parse_args()
@@ -84,10 +83,7 @@ if __name__ == '__main__':
 
     def get_pred(info, id):
         suffix = info[-1]
-        if args.dataset == 'cnn':
-            fn = 'out/adapter_v2/' + info[1] + f'/results/{id}_{suffix}.txt'
-        else:
-            fn = 'out/adapter_v2/' + info[1] + f'/results/{args.dataset}/{id}_{suffix}.txt'
+        fn = 'out/adapter_v2/' + info[1] + f'/results/{args.dataset}/{id}_{suffix}.txt'
         with open(fn, 'r') as fd:
             pred_lines = fd.readlines()
         pred_lines = [
@@ -97,10 +93,7 @@ if __name__ == '__main__':
 
     def get_fns(info):
         suffix = info[-1]
-        if args.dataset == 'cnn':
-            fns = list(glob('out/adapter_v2/' + info[1] + f'/results/*{suffix}.txt'))
-        else:
-            fns = list(glob('out/adapter_v2/' + info[1] + f'/results/{args.dataset}/*{suffix}.txt'))
+        fns = list(glob('out/adapter_v2/' + info[1] + f'/results/{args.dataset}/*{suffix}.txt'))
         ids = [
             fn.split('/')[-1].replace('.txt', '').split('_')[0] for fn in fns
         ]
@@ -141,13 +134,17 @@ if __name__ == '__main__':
             'abstract_untok': 'summary'
         })
 
-    id2article = dict(zip(dataset['id'], dataset['article'] if 'article' in dataset else dataset['document']))
-    id2reference = dict(zip(dataset['id'], dataset['highlights'] if 'highlights' in dataset else dataset['summary']))
+    id2article = dict(zip(dataset['id'], dataset['article'] if 'article' in dataset.features else dataset['document']))
+    id2reference = dict(zip(dataset['id'], dataset['highlights'] if 'highlights' in dataset.features else dataset['summary']))
 
     exp2dcg = defaultdict(list)
     exp2toks = defaultdict(list)
     rouges = defaultdict(list)
     horses = defaultdict(list)
+
+    references = [
+        id2reference[id] for id in shared_ids
+    ]
 
     for id in tqdm(shared_ids):
         out_fn = os.path.join(acu_dir, f'{id}.json')
@@ -195,8 +192,6 @@ if __name__ == '__main__':
                 acus = [
                     re.sub(r'^\d+\.\s+', '', acu) for acu in acus
                 ]
-            with open(match_fn, 'r') as fd:
-                matches = json.load(fd)
         else:
             messages = [
                 # Boost its ego first

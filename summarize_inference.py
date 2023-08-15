@@ -22,7 +22,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from generate.base import generate
+from generate.base import generate, remove_trailing_sent_frag
 from lit_gpt import Tokenizer
 from lit_gpt.adapter import Block
 from lit_gpt.adapter import GPT, Config
@@ -84,13 +84,15 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--base', default='llama')
-    parser.add_argument('--adapter_path', default='out/adapter_v2/s2l_llama')
+    parser.add_argument('--adapter_path', default='out/adapter_v2/s2l_llama_gpt4_selection')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
-    parser.add_argument('--max_new_tokens', default=368, type=int)
+    parser.add_argument('--max_new_tokens', default=160, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=100, type=int)
+    parser.add_argument('--split', default='test')
+    parser.add_argument('--return_candidates', default=1, type=int)
 
     args = parser.parse_args()
 
@@ -118,7 +120,8 @@ if __name__ == '__main__':
         adapter_path = get_latest_file(args.adapter_path)
 
     os.makedirs(results_dir, exist_ok=True)
-
+    if args.split == 'train':
+        os.makedirs(os.path.join(results_dir, 'train'), exist_ok=True)
     auto_wrap_policy = partial(transformer_auto_wrap_policy, transformer_layer_cls={Block})
     strategy = FSDPStrategy(auto_wrap_policy=auto_wrap_policy, cpu_offload=False)
     fabric = L.Fabric(devices=args.devices, precision=args.precision, strategy=strategy)
@@ -154,13 +157,14 @@ if __name__ == '__main__':
 
     tokenizer = Tokenizer(args.checkpoint_dir)
 
+    print(args.max_new_tokens)
     print('Reading in dataset...')
     if args.dataset == 'cnn':
-        dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
+        dataset = load_dataset('cnn_dailymail', '3.0.0', split=args.split)
     elif args.dataset == 'xsum':
-        dataset = load_dataset(args.dataset, split='test')
+        dataset = load_dataset(args.dataset, split=args.split)
     else:
-        dataset = load_from_disk(os.path.expanduser('~/nyt_edu_alignments'))['test']
+        dataset = load_from_disk(os.path.expanduser('~/nyt_edu_alignments'))[args.split]
         dataset = dataset.rename_columns({
             'article_untok': 'document',
             'abstract_untok': 'summary'
@@ -174,7 +178,7 @@ if __name__ == '__main__':
 
     for example in tqdm(dataset, total=len(dataset)):
         id = example['id']
-        article = example.get('article', example['document'])
+        article = example['article'] if 'article' in example else example['document']
         article_toks = article.split(' ')
         n = len(article_toks)
         if n > args.max_article_toks:
@@ -182,15 +186,23 @@ if __name__ == '__main__':
 
         summarize_input = f'Article: {article}'
         summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['vanilla']}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
+        predictions = []
 
         try:
-            prediction = get_completion(args, model, tokenizer, summarze_prompt)
+            for _ in range(args.return_candidates):
+                prediction = remove_trailing_sent_frag(get_completion(
+                    args, model, tokenizer, summarze_prompt, max_new_tokens=args.max_new_tokens
+                ))
+                predictions.append(prediction)
         except Exception as e:
             print(e)
             continue
 
-        fabric.print(prediction)
+        fabric.print('\n'.join(predictions))
 
-        out_fn = os.path.join(results_dir, f'{id}_summarize.txt')
+        if args.split == 'train':
+            out_fn = os.path.join(results_dir, 'train', f'{id}.txt')
+        else:
+            out_fn = os.path.join(results_dir, f'{id}_summarize.txt')
         with open(out_fn, 'w') as fd:
-            fd.write(prediction)
+            fd.write('\n'.join(predictions))

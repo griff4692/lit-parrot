@@ -4,6 +4,7 @@ import time
 import warnings
 from pathlib import Path
 from typing import Optional, Literal
+from nltk import sent_tokenize
 
 import lightning as L
 import torch
@@ -16,6 +17,76 @@ sys.path.append(str(wd))
 from lit_gpt import GPT, Tokenizer, Config
 from lit_gpt.model import Block
 from lit_gpt.utils import lazy_load, check_valid_checkpoint_dir, quantization
+
+
+def remove_trailing_sent_frag(text):
+    if text.endswith('.') or text.endswith('?') or text.endswith('!') or text.endswith('"') or text.endswith('\''):
+        return text
+    print(text)
+    print('Fragment detected ^')
+    return ' '.join(sent_tokenize(text)[:-1])
+
+
+def get_generated_ngrams(banned_ngrams, prev_input_ids, ngram_size, cur_len):
+    """
+    Determines the banned tokens for the current hypothesis based on previously generated n-grams.
+
+    Args:
+        banned_ngrams (`dict`):
+            A dictionary containing previously generated n-grams for each hypothesis.
+        prev_input_ids (`torch.Tensor`):
+            Generated token ids for the current hypothesis.
+        ngram_size (`int`):
+            The number sequential tokens taken as a group which may only occur once before being banned.
+        cur_len (`int`):
+            The current length of the token sequences for which the n-grams are being checked.
+
+    Returns:
+        List of tokens that are banned.
+    """
+    # Before decoding the next token, prevent decoding of ngrams that have already appeared
+    start_idx = cur_len + 1 - ngram_size
+    ngram_idx = tuple(prev_input_ids[start_idx:cur_len].tolist())
+    return banned_ngrams.get(ngram_idx, [])
+
+
+def get_ngrams(ngram_size: int, prev_input_ids: torch.Tensor):
+    """
+    Assume ngram_size=2 and prev_input_ids=tensor([[40, 2883, 2712, 4346]]). The output of generated ngrams look like
+    this {(40,): [2883], (2883,): [2712], (2712,): [4346]}.
+
+    Args:
+        ngram_size (`int`):
+            The number sequential tokens taken as a group which may only occur once before being banned.
+        prev_input_ids (`torch.Tensor`):
+           Generated token ids for the current hypothesis.
+        num_hypos (`int`):
+            The number of hypotheses for which n-grams need to be generated.
+
+    Returns:
+        generated_ngrams (`dict`):
+            Dictionary of generated ngrams.
+    """
+    # Initialize an empty list of dictionaries, one for each hypothesis (index) in the range of num_hypos
+    generated_ngrams = {}
+    gen_tokens = prev_input_ids.tolist()
+    generated_ngram = generated_ngrams
+    # Loop through each n-gram of size ngram_size in the list of tokens (gen_tokens)
+    for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
+        prev_ngram_tuple = tuple(ngram[:-1])
+        generated_ngram[prev_ngram_tuple] = generated_ngram.get(prev_ngram_tuple, []) + [ngram[-1]]
+    return generated_ngrams
+
+
+def calc_banned_ngram_tokens(
+    ngram_size: int, prev_input_ids: torch.Tensor, cur_len: int):
+    """Copied from fairseq for no_repeat_ngram in beam_search"""
+    if cur_len + 1 < ngram_size:
+        # return no banned tokens if we haven't generated no_repeat_ngram_size tokens yet
+        return []
+    generated_ngrams = get_ngrams(ngram_size, prev_input_ids)
+    banned_tokens = get_generated_ngrams(generated_ngrams, prev_input_ids[hypo_idx], ngram_size, cur_len)
+    return banned_tokens
 
 
 @torch.no_grad()

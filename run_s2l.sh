@@ -16,6 +16,11 @@ then
   echo "LLAMA Chat"
   DATA="llama"
   CKPT="meta-llama/Llama-2-7b-chat-hf"
+elif [[ $PARROT_MODEL == "llama_13" ]]
+then
+  echo "LLAMA"
+  DATA="llama"
+  CKPT="meta-llama/Llama-2-13b-hf"
 else
   echo "LLAMA"
   DATA="llama"
@@ -23,4 +28,4 @@ else
 fi
 
 python finetune/s2l_adapter_v2.py --data_dir "data/${DATASET}_${DATA}" --checkpoint_dir "checkpoints/${CKPT}" \
-    --out_dir "out/adapter_v2/${DATASET}_${PARROT_MODEL}" --precision bf16-true
+    --out_dir "out/adapter_v2/${DATASET}_${PARROT_MODEL}_lowlr" --precision bf16-true

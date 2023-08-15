@@ -22,7 +22,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from generate.base import generate
+from generate.base import generate, remove_trailing_sent_frag
 from lit_gpt import Tokenizer
 from lit_gpt.adapter import Block
 from lit_gpt.adapter import GPT, Config
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--base', default='llama')
     parser.add_argument('--adapter_path', default='out/adapter_v2/s2l_llama')
     parser.add_argument('--devices', default=1, type=int)
-    parser.add_argument('--max_new_tokens', default=368, type=int)
+    parser.add_argument('--max_new_tokens', default=200, type=int)
     parser.add_argument('--temperature', default=0.1, type=float)
     parser.add_argument('--precision', default='bf16-true')
     parser.add_argument('--max_examples', default=100, type=int)
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     for example in tqdm(dataset, total=len(dataset)):
         progressive_predictions = []
         id = example['id']
-        article = example.get('article', example['document'])
+        article = example['article'] if 'article' in example else example['document']
         article_toks = article.split(' ')
         n = len(article_toks)
         if n > args.max_article_toks:
@@ -194,19 +194,23 @@ if __name__ == '__main__':
                 continue
 
         try:
-            progressive_predictions = [get_completion(args, model, tokenizer, tldr_prompt)]
+            progressive_predictions = [remove_trailing_sent_frag(
+                get_completion(args, model, tokenizer, tldr_prompt, args.max_new_tokens)
+            )]
             cot = set()
             for iter in range(3):
                 change_input = f'Article: {article}\n\nSummary: {progressive_predictions[-1]}'
                 decide_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['decide_length']}\n\n### Input:\n{change_input}\n\n### Response:\n"
 
-                decision = get_completion(args, model, tokenizer, decide_prompt).lower()
+                decision = get_completion(args, model, tokenizer, decide_prompt, args.max_new_tokens).lower()
                 assert len(decision) == 1
                 if decision == 'n':
                     break
 
                 update_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['lengthen']}\n\n### Input:\n{change_input}\n\n### Response:\n"
-                prediction = get_completion(args, model, tokenizer, update_prompt)
+                prediction = remove_trailing_sent_frag(
+                    get_completion(args, model, tokenizer, update_prompt, args.max_new_tokens)
+                )
                 pred_lines = prediction.split('\n')
                 new_cot = [x.strip() for x in pred_lines[0].split(';')]
                 new_cot_valid = [x for x in new_cot if x not in cot]
@@ -217,7 +221,9 @@ if __name__ == '__main__':
                 elif len(new_cot_valid) < len(new_cot):
                     print('Removing repeated entries...')
                     update_prompt_trunc = update_prompt + 'MISSING: ' + '; '.join(new_cot_valid) + '\nSUMMARY V2: '
-                    prediction = get_completion(args, model, tokenizer, update_prompt_trunc)
+                    prediction = remove_trailing_sent_frag(
+                        get_completion(args, model, tokenizer, update_prompt_trunc, args.max_new_tokens)
+                    )
                     pred_lines = prediction.split('\n')
 
                 for x in new_cot_valid:

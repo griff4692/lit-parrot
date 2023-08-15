@@ -50,7 +50,7 @@ def prepare(
     print(f'Loading dataset...')
 
     if args.dataset == 's2l':
-        train_set = load_dataset('griffin/progressive_summarization', split='train')
+        train_set = load_dataset('griffin/incr_summ', split='train')
     else:
         assert args.dataset == 'length'
         dataset = load_dataset('griffin/length_summarization')
