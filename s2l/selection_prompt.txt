@@ -1,0 +1,26 @@
+Article: {{ARTICLE}}
+
+Summary 1: {{S1}}
+
+Summary 2: {{S2}}
+
+Summary 3: {{S3}}
+
+Summary 4: {{S4}}
+
+*******************
+
+Above, you are shown 4 summaries. Identify the summary which best satisfies the following equally-important criteria:
+
+1. Brief: Much quicker to read than the Article.
+2. Precise: A high ratio of summary-worthy content to non summary-worthy.
+3. Concise: The summary should synthesize, not regurgitate, the Article.
+4. Informative: The main ideas are conveyed.
+5. Self-Contained: The summary makes sense without the Article.
+
+For this exercise, weight each criteria equally. Criteria 1-3 are biased toward short summaries while 4-5 are slighty biased toward longer summaries.
+
+Choose a Summary by its number. Then, for this summary, rank the Criteria (by its number), starting with the criteria most satisfied by the chosen summary.
+
+Chosen Summary:
+Criteria Ranking:

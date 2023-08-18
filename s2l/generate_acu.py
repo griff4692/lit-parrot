@@ -1,9 +1,7 @@
-from collections import Counter
 import os
 from glob import glob
 import argparse
 import regex as re
-import math
 
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
@@ -22,7 +20,6 @@ openai.organization = OA_ORGANIZATION
 openai.api_key = OA_KEY
 
 EXPERIMENTS = [
-    # ['llama_incr', 's2l_llama', 's2l'],
     ['llama_straight', 's2l_llama', 'summarize'],
     ['llama_1', 'length_llama', '1'],
     ['llama_2', 'length_llama', '2'],

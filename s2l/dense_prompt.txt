@@ -1,0 +1,26 @@
+Article: {{ARTICLE}}
+
+Repeat the following 2 steps 4 times.
+
+Step 1. Identify 1 new informative Entity in the Article which is missing from the previously generated summary.
+Step 2. Write a new summary of identical length which covers all the content in the previous summary plus the Missing Entity.
+
+A Missing Entity is:
+- Necessary: for understanding the main ideas of the Article.
+- Specific: descriptive yet concise (5 words or fewer).
+- Novel: not in the previous summary.
+- Faithful: present in the Article.
+- Anywhere: located anywhere in the Article.
+
+Style Guidelines:
+- The first summary should be 4-5 sentences (~80-100 words) and cover at most 5 entities.
+- Each successive summary MUST cover ALL the content in the previous summary PLUS the new Entity.
+- Re-write the previous summary to improve flow and make space for an additional Entity.
+- Make space by fusing related content, shortening phrases (e.g., abbreviations, synonyms), and removing uninformative phrases (e.g., "This article discusses").
+- Do NOT make space by leaving out ANY facts or entities from the previous summary or by removing vital context (e.g. first names).
+- Break up long sentences into shorter ones to improve readability.
+- The Missing Entity can appear anywhere in the new summary.
+
+Remember, use the exact same number of tokens for each summary.
+
+Answer in JSON. The JSON should be a list of dictionaries whose keys are "Missing_Entity" and "Denser_Summary".

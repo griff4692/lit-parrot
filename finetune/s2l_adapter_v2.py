@@ -25,7 +25,7 @@ from lit_gpt.utils import lazy_load, check_valid_checkpoint_dir, step_csv_logger
 from lit_gpt.speed_monitor import SpeedMonitorFabric as SpeedMonitor, measure_flops, estimate_flops
 from scripts.prepare_alpaca import generate_prompt
 
-save_interval = 500
+save_interval = 200
 log_interval = 128
 devices = int(os.environ.get('NUM_DEVICES', 2))
 # change this value to force a maximum sequence length
@@ -33,7 +33,7 @@ BLOCK_SIZE = 2048
 override_max_seq_length = BLOCK_SIZE
 
 # Hyperparameters
-learning_rate = 3e-5  # 3e-3 --> 3e-5
+learning_rate = 3e-3
 batch_size = 128 / devices
 micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size

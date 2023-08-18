@@ -1,19 +1,8 @@
-from collections import Counter
-import os
-from glob import glob
-import argparse
-import regex as re
-import math
-
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
-import openai
 from evaluate import load
-import numpy as np
-import json
 from nltk import word_tokenize, sent_tokenize
-from tqdm import tqdm
-import backoff
+
 import spacy
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -23,18 +12,7 @@ from nltk.util import ngrams
 from rouge_utils import *
 from fragments import compute_frags
 
-
-import spacy as nlp
-
-
-EXPERIMENTS = [
-    # ['llama_incr', 's2l_llama', 's2l'],
-    ['llama_straight', 's2l_llama_gpt4_selection', 'summarize'],
-    ['llama_1', 'length_llama', '1'],
-    ['llama_2', 'length_llama', '2'],
-    ['llama_3', 'length_llama', '3'],
-    ['llama_4', 'length_llama', '4'],
-]
+from data_utils import *
 
 
 def num_ents(text, nlp):
@@ -60,7 +38,8 @@ def compute_exp(nlp, name, sources, source_tokens, preds):
         len(word_tokenize(pred)) for pred in preds
     ]
     exp_stats['tokens'] = tokens
-    exp_stats['length_correlation'] = pearsonr(tokens, source_tokens)[0]
+    if len(tokens) == len(source_tokens):
+        exp_stats['length_correlation'] = pearsonr(tokens, source_tokens)[0]
 
     # Create the histogram
     sns.histplot(tokens, bins=20, kde=True)
@@ -100,21 +79,27 @@ def compute_exp(nlp, name, sources, source_tokens, preds):
         exp_stats['fusion'].append(fusion_score)
         exp_stats['avg_sent_rank'].append(avg_rank)
     print(name)
+    row_str = []
+    keys = []
     for k, v in exp_stats.items():
+        keys.append(k)
         print(k, np.mean(v))
+        row_str.append(str(np.mean(v)))
+    print('\n\n' + '***START***' + '\n')
+    print(name)
+    print(' '.join(keys))
+    print(' '.join(row_str))
+    print('\n' + '***END***' + '\n\n')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='cnn')
-    parser.add_argument('--experiment', default='default')
     parser.add_argument('-overwrite', default=False, action='store_true')
     parser.add_argument('--max_examples', default=100, type=int)
-    parser.add_argument('--device', default=1, type=int)
+    parser.add_argument('--model_class', default='gpt4', choices=['llama', 'gpt4'])
 
     args = parser.parse_args()
-
-    args.experiment += '_' + args.dataset
 
     overwrite = args.overwrite
 
@@ -122,23 +107,10 @@ if __name__ == '__main__':
 
     nlp = spacy.load("en_core_web_sm")
 
-    def get_pred(info, id):
-        suffix = info[-1]
-        fn = 'out/adapter_v2/' + info[1] + f'/results/{args.dataset}/{id}_{suffix}.txt'
-        with open(fn, 'r') as fd:
-            pred_lines = fd.readlines()
-        pred_lines = [
-            x.strip() for x in pred_lines if len(x.strip()) > 0
-        ]
-        return pred_lines[-1]
-
-    def get_fns(info):
-        suffix = info[-1]
-        fns = list(glob('out/adapter_v2/' + info[1] + f'/results/{args.dataset}/*{suffix}.txt'))
-        ids = [
-            fn.split('/')[-1].replace('.txt', '').split('_')[0] for fn in fns
-        ]
-        return list(zip(ids, fns))
+    EXPERIMENTS = GPT4_EXPERIMENTS if args.model_class == 'gpt4' else LLAMA_EXPERIMENTS
+    get_fns = get_gpt4_fns if args.model_class == 'gpt4' else get_llama_fns
+    get_preds = get_gpt4_preds if args.model_class == 'gpt4' else get_llama_preds
+    split = 'train' if args.model_class == 'gpt4' else 'test'
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
@@ -165,11 +137,11 @@ if __name__ == '__main__':
 
     print('Reading in dataset...')
     if args.dataset == 'cnn':
-        dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
+        dataset = load_dataset('cnn_dailymail', '3.0.0', split=split)
     elif args.dataset == 'xsum':
-        dataset = load_dataset(args.dataset, split='test')
+        dataset = load_dataset(args.dataset, split=split)
     else:
-        dataset = load_from_disk(os.path.expanduser('~/nyt_edu_alignments'))['test']
+        dataset = load_from_disk(os.path.expanduser('~/nyt_edu_alignments'))[split]
         dataset = dataset.rename_columns({
             'article_untok': 'document',
             'abstract_untok': 'summary'
@@ -186,7 +158,14 @@ if __name__ == '__main__':
     sources = [id2article[id] for id in shared_ids]
     source_tokens = [len(word_tokenize(source)) for source in sources]
     for exp in EXPERIMENTS:
-        preds = [get_pred(exp, id) for id in shared_ids]
-        compute_exp(nlp, exp[0], sources, source_tokens, preds)
+        preds = [get_preds(exp, id) for id in shared_ids]
+        num_preds_per = len(preds[0])
+        for step in range(num_preds_per):
+            step_preds = [pred[step] for pred in preds if step < len(pred)]
+            if num_preds_per == 1:
+                name = exp[0]
+            else:
+                name = exp[0] + f'_step_{step + 1}'
+            compute_exp(nlp, name, sources, source_tokens, step_preds)
 
     compute_exp(nlp, 'reference', sources, source_tokens, references)

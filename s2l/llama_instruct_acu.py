@@ -36,7 +36,6 @@ def form(input, task_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Evaluation')
-    parser.add_argument('--experiment', default='gpt-4_short_to_long_train')
     args = parser.parse_args()
 
     in_dir = os.path.join('out', 'adapter_v2', 's2l_llama_gpt4_selection', 'results', 'cnn', 'train')
@@ -70,7 +69,7 @@ if __name__ == '__main__':
             n = len(predictions)
 
             acus = [
-                score_acu(a3cu, prediction, reference) for prediction in predictions
+                score_acu(a3cu, prediction.strip(), reference) for prediction in predictions
             ]
 
             acu_f1s = [x['f1'] for x in acus]
