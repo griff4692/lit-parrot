@@ -13,10 +13,9 @@ LLAMA_EXPERIMENTS = [
 
 
 GPT4_EXPERIMENTS = [
-    ['gpt4_dense', 'dense_gpt4_train'],
-    ['gpt4_2', 'gpt-4_goyal_2_sents_train'],
-    ['gpt4_3', 'gpt-4_goyal_3_sents_train'],
-    ['gpt4_4', 'gpt-4_goyal_4_sents_train'],
+    ['dense_train'],
+    # ['gpt4_length', 'length_test'],
+    # ['gpt4_length_w_dense', 'length_w_dense_test'],
 ]
 
 GPT4_DIR = os.path.expanduser(os.path.join('~', 'Desktop', 's2l_data', 'cnn'))

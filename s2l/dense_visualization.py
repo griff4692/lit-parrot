@@ -12,13 +12,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    info = ['dense_gpt4_train']
+    others = ['length_test', 'length_w_dense_test']
+
+    info = ['dense_gpt4_test']
+    other_experiments = []
     experiment_fns = get_gpt4_fns(info)
 
     shared_ids = set([x[0] for x in experiment_fns])
 
     print('Reading in dataset...')
-    dataset = load_dataset('cnn_dailymail', '3.0.0', split='train')
+    dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
 
     id2article = dict(zip(dataset['id'], dataset['article'] if 'article' in dataset.features else dataset['document']))
     id2reference = dict(
@@ -31,11 +34,16 @@ if __name__ == '__main__':
     outputs = []
     for id in shared_ids:
         row = f'ID: {id}\n\n'
+
+        baselines = [get_gpt4_preds([other], id, return_missing=False)[0] for other in others]
         dense, missing = get_gpt4_preds(info, id, return_missing=True)
         article = id2article[id]
         row += f'Article:\n{article}\n\n'
         for i, (d, m) in enumerate(zip(dense, missing)):
             row += f'Added Entity: {m}\nSummary {i + 1}: {d}\n\n'
+
+        for pred, o in zip(baselines, others):
+            row += f'Baseline {o}: {pred}\n\n'
 
         outputs.append(row)
 

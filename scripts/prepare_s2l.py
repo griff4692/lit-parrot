@@ -49,8 +49,8 @@ def prepare(
 
     print(f'Loading dataset...')
 
-    if args.dataset == 's2l':
-        train_set = load_dataset('griffin/incr_summ', split='train')
+    if args.dataset == 'dense':
+        train_set = load_dataset('griffin/dense_summ', split='train')
     else:
         assert args.dataset == 'length'
         dataset = load_dataset('griffin/length_summarization')
@@ -134,6 +134,6 @@ def prepare_sample(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Prepare')
-    parser.add_argument('--dataset', default='s2l', choices=['s2l', 'length'])
+    parser.add_argument('--dataset', default='dense', choices=['dense', 'length'])
     args = parser.parse_args()
     prepare(args)

@@ -7,12 +7,9 @@ import time
 from datasets import load_dataset, load_from_disk
 from functools import partial
 from pathlib import Path
-from typing import Literal
-import pandas as pd
 import numpy as np
 
 import lightning as L
-from evaluate import load
 import torch
 from tqdm import tqdm
 from lightning.fabric.strategies import FSDPStrategy
@@ -23,26 +20,14 @@ wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
 from generate.base import generate, remove_trailing_sent_frag
-from lit_gpt import Tokenizer
+from lit_gpt import Tokenizer, GPT, Config
 from lit_gpt.adapter import Block
-from lit_gpt.adapter import GPT, Config
 from lit_gpt.adapter_v2 import add_adapter_v2_parameters_to_linear_layers
 from lit_gpt.utils import lazy_load, quantization
 
 import glob
 
-
-ALPACA_HEADER = 'Below is an instruction that describes a task, paired with an input that provides further context. ' \
-                'Write a response that appropriately completes the request.'
-
-INSTRUCTIONS = {
-    # 'rank': 'Rank Summaries of an Article from best to worst.',
-    # 'cot': 'Generate a progressively longer summary of the Article.',
-    # 'control_length': 'Generate a summary of the Article with a target length.',
-    'vanilla': 'Generate a concise and informative summary of the Article.',
-    'tldr': 'Generate a one sentence summary of the Article.',
-    'change_length': 'Shorten or lengthen a Summary of an Article.'
-}
+from s2l.dense_distill import ALPACA_HEADER, INSTRUCTIONS
 
 
 def get_latest_file(directory):
@@ -84,7 +69,7 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--base', default='llama')
-    parser.add_argument('--adapter_path', default='out/adapter_v2/s2l_llama')
+    parser.add_argument('--adapter_path', default='out/adapter_v2/dense_llama')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--max_new_tokens', default=160, type=int)
@@ -98,10 +83,10 @@ if __name__ == '__main__':
 
     if args.base == 'llama':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-hf'
-        args.max_article_toks = 2048
+        args.max_article_toks = 4096
     elif args.base == 'llama_chat':
         args.checkpoint_dir = 'checkpoints/meta-llama/Llama-2-7b-chat-hf'
-        args.max_article_toks = 2048
+        args.max_article_toks = 4096
     else:
         args.checkpoint_dir = 'checkpoints/tiiuae/falcon-7b'
         args.max_article_toks = 1024
@@ -111,7 +96,7 @@ if __name__ == '__main__':
     args.checkpoint_dir = Path(args.checkpoint_dir)
     torch.set_float32_matmul_precision("high")
 
-    if args.adapter_path is None:
+    if args.adapter_path is None or len(args.adapter_path) == 0:
         adapter_path = None
         results_dir = os.path.join('out', args.base, args.dataset)
     else:
@@ -185,7 +170,7 @@ if __name__ == '__main__':
             article = ' '.join(article_toks[:args.max_article_toks])
 
         summarize_input = f'Article: {article}'
-        summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['vanilla']}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
+        summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['straight']}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
         predictions = []
 
         try:

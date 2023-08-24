@@ -1,3 +1,4 @@
+import os.path
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
 from evaluate import load
@@ -32,7 +33,7 @@ def redundancy(text):
     }
 
 
-def compute_exp(nlp, name, sources, source_tokens, preds):
+def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
     exp_stats = defaultdict(list)
     tokens = [
         len(word_tokenize(pred)) for pred in preds
@@ -40,6 +41,11 @@ def compute_exp(nlp, name, sources, source_tokens, preds):
     exp_stats['tokens'] = tokens
     if len(tokens) == len(source_tokens):
         exp_stats['length_correlation'] = pearsonr(tokens, source_tokens)[0]
+
+    for p, r in zip(preds, references):
+        obj = rouge.compute(predictions=[p], references=[r], use_aggregator=False)
+        for k, v in obj.items():
+            exp_stats[k].append(v[0])
 
     # Create the histogram
     sns.histplot(tokens, bins=20, kde=True)
@@ -91,16 +97,20 @@ def compute_exp(nlp, name, sources, source_tokens, preds):
     print(' '.join(row_str))
     print('\n' + '***END***' + '\n\n')
 
+    return exp_stats
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('-overwrite', default=False, action='store_true')
-    parser.add_argument('--max_examples', default=100, type=int)
+    parser.add_argument('--max_examples', default=1000, type=int)
     parser.add_argument('--model_class', default='gpt4', choices=['llama', 'gpt4'])
+    parser.add_argument('--out_fn', default='~/Desktop/s2l_data/metrics.json')
 
     args = parser.parse_args()
 
+    args.out_fn = os.path.expanduser(args.out_fn)
     overwrite = args.overwrite
 
     rouge = load('rouge', keep_in_memory=True)
@@ -132,9 +142,6 @@ if __name__ == '__main__':
         np.random.shuffle(shared_ids)
         shared_ids = shared_ids[:args.max_examples]
 
-    stats_dir = os.path.expanduser(f'~/lit-parrot/out/eval/stats')
-    os.makedirs(stats_dir, exist_ok=True)
-
     print('Reading in dataset...')
     if args.dataset == 'cnn':
         dataset = load_dataset('cnn_dailymail', '3.0.0', split=split)
@@ -157,6 +164,9 @@ if __name__ == '__main__':
 
     sources = [id2article[id] for id in shared_ids]
     source_tokens = [len(word_tokenize(source)) for source in sources]
+
+    out = {'id': shared_ids}
+
     for exp in EXPERIMENTS:
         preds = [get_preds(exp, id) for id in shared_ids]
         num_preds_per = len(preds[0])
@@ -165,7 +175,11 @@ if __name__ == '__main__':
             if num_preds_per == 1:
                 name = exp[0]
             else:
-                name = exp[0] + f'_step_{step + 1}'
-            compute_exp(nlp, name, sources, source_tokens, step_preds)
+                names = ['Initial', 'Step 1', 'Step 2', 'Step 3']
+                name = names[step]
+            out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, step_preds)
 
-    compute_exp(nlp, 'reference', sources, source_tokens, references)
+    with open(args.out_fn, 'w') as fd:
+        json.dump(out, fd)
+
+    compute_exp(nlp, rouge, 'reference', sources, source_tokens, references, references)

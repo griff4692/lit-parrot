@@ -11,6 +11,7 @@ from tqdm import tqdm
 import backoff
 import regex as re
 import lxml.html.clean
+from time import sleep
 
 from oa_secrets import OA_KEY, OA_ORGANIZATION
 
@@ -57,6 +58,7 @@ if __name__ == '__main__':
         'gpt-4',
     ])
     parser.add_argument('--split', default='train')
+    parser.add_argument('-reversed', default=False, action='store_true')
 
     parser.add_argument('--max_n', default=1000, type=int)
 
@@ -89,6 +91,9 @@ if __name__ == '__main__':
     source_key = 'Article' if args.dataset != 'chemistry' else 'Paper'
 
     dense_prompt = open('dense_prompt.txt').read().strip()
+
+    if args.reversed:
+        dataset = dataset.select(list(reversed(list(range(len(dataset))))))
 
     for example in tqdm(dataset, total=len(dataset)):
         id = example.get('id', None)
@@ -143,3 +148,5 @@ if __name__ == '__main__':
         print(f'Saving to {out_fn}')
         with open(out_fn, 'w') as fd:
             ujson.dump(example, fd, indent=4)
+
+        sleep(1)

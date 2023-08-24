@@ -51,10 +51,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Script to Generate Two-Step Rank-then-Rate for Summeval')
     parser.add_argument('--experiment', default=None)
     parser.add_argument('--dataset', default='cnn')
-    parser.add_argument('--mode', default='short_to_long', choices=[
+    parser.add_argument('--mode', default='goyal', choices=[
         'short_to_long',
         'goyal',
     ])
+
+    parser.add_argument('-entity_dense', default=False, action='store_true')
 
     parser.add_argument('--model', default='gpt-4', choices=[
         'gpt-3.5-turbo',
@@ -107,6 +109,8 @@ if __name__ == '__main__':
 
     s2l_prompt = open('s2l_prompt.txt').read().strip()
 
+    arr = []
+
     for example in tqdm(dataset, total=len(dataset)):
         id = example.get('id', None)
 
@@ -139,13 +143,22 @@ if __name__ == '__main__':
             source = ' '.join(source.split(' ')[:max_n])
 
         if args.mode == 'goyal':
+            suffix = '\n\n'
+            if args.entity_dense:
+                suffix = '\n\nThe summary should be entity dense.\n\n'
+
             initial_messages = [
                 # Boost its ego first
                 {'role': 'system', 'content': 'You are a helpful assistant for text summarization.'},
-                {'role': 'user', 'content': f'{source_key}: {source}\n\nSummarize the above {source_key} in {args.goyal_num} sentences.\n'}
+                # {'role': 'user', 'content': f'{source_key}: {source}\n\nSummarize the above {source_key} in {args.goyal_num} sentences.\n{suffix}'}
+                {'role': 'user', 'content': f'{source_key}: {source}\n\nWrite a VERY short summary of the {source_key}.\n\nDo not exceed 70 words.\n\nBreak up long sentences into shorter ones to improve readability.{suffix}'}
             ]
 
-            predictions = json.loads(chatgpt(initial_messages, model=args.model))
+            predictions = chatgpt(initial_messages, model=args.model)
+
+            from nltk import word_tokenize
+            arr.append(len(word_tokenize(predictions)))
+            print(np.mean(arr))
 
             example['prediction'] = predictions
             example['mode'] = args.mode

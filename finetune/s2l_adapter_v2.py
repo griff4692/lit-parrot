@@ -13,19 +13,16 @@ from lightning.fabric.strategies import FSDPStrategy, XLAStrategy
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from generate.base import generate
 from lit_gpt.adapter import GPT, Config, Block
 from lit_gpt.adapter_v2 import (
     mark_only_adapter_v2_as_trainable,
     add_adapter_v2_parameters_to_linear_layers,
     adapter_filter,
 )
-from lit_gpt.tokenizer import Tokenizer
 from lit_gpt.utils import lazy_load, check_valid_checkpoint_dir, step_csv_logger, chunked_cross_entropy
 from lit_gpt.speed_monitor import SpeedMonitorFabric as SpeedMonitor, measure_flops, estimate_flops
-from scripts.prepare_alpaca import generate_prompt
 
-save_interval = 200
+save_interval = 50
 log_interval = 128
 devices = int(os.environ.get('NUM_DEVICES', 2))
 # change this value to force a maximum sequence length
@@ -38,11 +35,11 @@ batch_size = 128 / devices
 micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
-epoch_size = 5000  # train dataset size
-num_epochs = 10
+epoch_size = 470  # train dataset size
+num_epochs = 20
 max_iters = num_epochs * (epoch_size // micro_batch_size) // devices
 weight_decay = 0.02
-warmup_steps = 1000  # 2 * (epoch_size // micro_batch_size) // devices // gradient_accumulation_iters  # 2 epochs
+warmup_steps = 100  # 2 * (epoch_size // micro_batch_size) // devices // gradient_accumulation_iters  # 2 epochs
 
 hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
 
