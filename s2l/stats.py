@@ -174,7 +174,7 @@ if __name__ == '__main__':
             if num_preds_per == 1:
                 name = exp[0]
             else:
-                names = ['Initial', 'Step 1', 'Step 2', 'Step 3']
+                names = ['Initial', 'Step 1', 'Step 2', 'Step 3', 'Step 4']
                 name = names[step]
             out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, step_preds)
 

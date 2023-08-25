@@ -41,7 +41,7 @@ def linearize_chemistry(example):
 
 
 @backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.APIError, openai.error.ServiceUnavailableError), max_tries=20)
-def chatgpt(messages, model='gpt-4', max_tokens=1536):
+def chatgpt(messages, model='gpt-4', max_tokens=2048):
     response = openai.ChatCompletion.create(
         model=model, messages=messages, temperature=0.1, max_tokens=max_tokens
     )

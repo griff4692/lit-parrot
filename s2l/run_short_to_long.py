@@ -63,7 +63,6 @@ if __name__ == '__main__':
         'gpt-4',
     ])
     parser.add_argument('--split', default='train')
-    parser.add_argument('--goyal_num', default='3')
 
     parser.add_argument('--max_n', default=1000, type=int)
 
@@ -77,8 +76,6 @@ if __name__ == '__main__':
 
     if args.experiment is None:
         args.experiment = f'{args.model}_{args.mode}_{args.split}'
-        if args.mode == 'goyal':
-            args.experiment += '_' + str(args.goyal_num) + '_sents'
 
     if args.dataset == 'cnn':
         dataset = load_dataset('cnn_dailymail', '3.0.0', split=args.split)
@@ -151,7 +148,7 @@ if __name__ == '__main__':
                 # Boost its ego first
                 {'role': 'system', 'content': 'You are a helpful assistant for text summarization.'},
                 # {'role': 'user', 'content': f'{source_key}: {source}\n\nSummarize the above {source_key} in {args.goyal_num} sentences.\n{suffix}'}
-                {'role': 'user', 'content': f'{source_key}: {source}\n\nWrite a VERY short summary of the {source_key}.\n\nDo not exceed 70 words.\n\nBreak up long sentences into shorter ones to improve readability.{suffix}'}
+                {'role': 'user', 'content': f'{source_key}: {source}\n\nWrite a VERY short summary of the {source_key}.\n\nDo not exceed 70 words.\n\n{suffix}'.strip()}
             ]
 
             predictions = chatgpt(initial_messages, model=args.model)
