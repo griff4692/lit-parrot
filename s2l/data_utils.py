@@ -13,7 +13,7 @@ LLAMA_EXPERIMENTS = [
 
 
 GPT4_EXPERIMENTS = [
-    ['dense_train'],
+    ['human_dense_v2'],
     # ['gpt4_length', 'length_test'],
     # ['gpt4_length_w_dense', 'length_w_dense_test'],
 ]

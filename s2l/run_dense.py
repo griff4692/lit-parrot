@@ -134,7 +134,7 @@ if __name__ == '__main__':
         outputs = json.loads(chatgpt(messages))
 
         missing = [
-            x["Missing_Entity"] for x in outputs
+            x["Missing_Entities"] for x in outputs
         ]
 
         predictions = [

@@ -1,4 +1,3 @@
-import os.path
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
 from evaluate import load
@@ -120,7 +119,7 @@ if __name__ == '__main__':
     EXPERIMENTS = GPT4_EXPERIMENTS if args.model_class == 'gpt4' else LLAMA_EXPERIMENTS
     get_fns = get_gpt4_fns if args.model_class == 'gpt4' else get_llama_fns
     get_preds = get_gpt4_preds if args.model_class == 'gpt4' else get_llama_preds
-    split = 'train' if args.model_class == 'gpt4' else 'test'
+    split = 'test' if args.model_class == 'gpt4' else 'test'
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS

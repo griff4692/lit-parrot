@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    info = ['human_dense']
+    info = ['human_dense_v2']
     experiment_fns = get_gpt4_fns(info)
 
     shared_ids = set([x[0] for x in experiment_fns])
@@ -52,8 +52,8 @@ if __name__ == '__main__':
         outputs.append(row)
 
     metas = pd.DataFrame(metas)
-    metas.to_csv('dense_human_8_19.csv', index=False)
+    metas.to_csv('dense_human_8_24.csv', index=False)
 
     delim = '*' * 75 + '\n\n'
-    with open('dense_human_8_19.txt', 'w') as fd:
+    with open('dense_human_8_24.txt', 'w') as fd:
         fd.write(delim.join(outputs))
