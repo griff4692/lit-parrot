@@ -41,7 +41,7 @@ def prepare(
     """
     with open(checkpoint_dir / "lit_config.json", "r") as file:
         config = json.load(file)
-        max_seq_length = min(2048, config["block_size"])
+        max_seq_length = min(4096, config["block_size"])
 
     destination_path = Path(os.path.join(MAIN_DIR, f"data/{args.dataset}_{PARROT_MODEL}"))
 
@@ -52,16 +52,15 @@ def prepare(
     if args.dataset == 'dense':
         train_set = load_dataset('griffin/dense_summ', split='train')
     else:
-        assert args.dataset == 'length'
-        dataset = load_dataset('griffin/length_summarization')
+        assert args.dataset == 'baseline'
+        dataset = load_dataset('griffin/baseline_summarization')
         train_set = dataset['train']
 
     print("Loading tokenizer...")
     tokenizer = Tokenizer(checkpoint_dir)
 
     n_train = len(train_set)
-
-    print(f"train has {n_train} samples")
+    print(f'Train has {n_train} samples')
 
     print("Processing train split ...")
     train_set = [
@@ -134,6 +133,6 @@ def prepare_sample(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Prepare')
-    parser.add_argument('--dataset', default='dense', choices=['dense', 'length'])
+    parser.add_argument('--dataset', default='dense', choices=['dense', 'baseline'])
     args = parser.parse_args()
     prepare(args)

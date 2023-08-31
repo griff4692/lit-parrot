@@ -20,20 +20,26 @@ wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
 from generate.base import generate, remove_trailing_sent_frag
-from lit_gpt import Tokenizer, GPT, Config
-from lit_gpt.adapter import Block
+from lit_gpt import Tokenizer, GPT as BaseGPT, Config as BaseConfig
+from lit_gpt.adapter import Block, GPT, Config
 from lit_gpt.adapter_v2 import add_adapter_v2_parameters_to_linear_layers
 from lit_gpt.utils import lazy_load, quantization
 
 import glob
 
 from s2l.dense_distill import ALPACA_HEADER, INSTRUCTIONS
+from s2l.baseline_distill import INSTRUCTIONS as BASELINE_INSTRUCTIONS
 
 
 def get_latest_file(directory):
     # Get list of all files, and sort them by modified time descending
     files = sorted(glob.glob(os.path.join(directory, '*.pth')), key=os.path.getmtime, reverse=True)
     # If list is not empty, return the first file (which will have the latest timestamp)
+
+    # # TODO remove this - this is bad!!!!
+    # print('\n\n\nWARNING!!! SELECTING ARBITRARY CHECKPOINT\n\n\n')
+    # files = [x for x in files if '010239' in x]
+
     if files:
         return files[0]
     else:
@@ -69,7 +75,7 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--base', default='llama')
-    parser.add_argument('--adapter_path', default='out/adapter_v2/dense_llama')
+    parser.add_argument('--adapter_path', default='out/adapter_v2/dense_llama_chat')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--max_new_tokens', default=160, type=int)
@@ -96,6 +102,9 @@ if __name__ == '__main__':
     args.checkpoint_dir = Path(args.checkpoint_dir)
     torch.set_float32_matmul_precision("high")
 
+    is_dense = args.adapter_path is not None and 'dense' in args.adapter_path
+    print(f'IS DENSE -> {is_dense}')
+
     if args.adapter_path is None or len(args.adapter_path) == 0:
         adapter_path = None
         results_dir = os.path.join('out', args.base, args.dataset)
@@ -103,6 +112,9 @@ if __name__ == '__main__':
         results_dir = os.path.join(args.adapter_path, 'results', args.dataset)
         args.adapter_path = Path(args.adapter_path)
         adapter_path = get_latest_file(args.adapter_path)
+
+    print(results_dir)
+    print(f'Adapter Path -> {adapter_path}')
 
     os.makedirs(results_dir, exist_ok=True)
     if args.split == 'train':
@@ -113,7 +125,7 @@ if __name__ == '__main__':
     fabric.launch()
 
     with open(args.checkpoint_dir / "lit_config.json") as fp:
-        config = Config(**json.load(fp))
+        config = Config(**json.load(fp)) if adapter_path is not None else BaseConfig(**json.load(fp))
 
     model_file = "lit_model.pth"
     checkpoint_path = args.checkpoint_dir / model_file
@@ -122,8 +134,10 @@ if __name__ == '__main__':
 
     t0 = time.time()
     with fabric.init_module(empty_init=True), quantization(None):
-        model = GPT(config)
-        if adapter_path is not None:
+        if adapter_path is None:
+            model = BaseGPT(config)
+        else:
+            model = GPT(config)
             add_adapter_v2_parameters_to_linear_layers(model)
     fabric.print(f"Time to instantiate model: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
@@ -170,7 +184,11 @@ if __name__ == '__main__':
             article = ' '.join(article_toks[:args.max_article_toks])
 
         summarize_input = f'Article: {article}'
-        summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{INSTRUCTIONS['straight']}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
+        if adapter_path is None:
+            instruction = 'Write a VERY short summary of the Article.\n\nDo not exceed 70 words.'
+        else:
+            instruction = INSTRUCTIONS['straight'] if is_dense else BASELINE_INSTRUCTIONS['summarize']
+        summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{instruction}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
         predictions = []
 
         try:

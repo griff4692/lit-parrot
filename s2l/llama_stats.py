@@ -8,11 +8,36 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import chain
 from scipy.stats import pearsonr
+from time import sleep
 from nltk.util import ngrams
 from rouge_utils import *
 from fragments import compute_frags
 
 from data_utils import *
+from oa_secrets import OA_KEY, OA_ORGANIZATION
+import openai
+
+openai.organization = OA_ORGANIZATION
+openai.api_key = OA_KEY
+import backoff
+
+
+PREFIX = 'Here is an Article along with several possible summaries for the article.'
+SUFFIXES = {
+    'informative': 'Please rate the summary (1=worst to 5=best) with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a single number.',
+    'quality': 'Please rate the summary (1=worst to 5=best) with respect to quality. A high quality summary is comprehensible and understandable. Return a single number.',
+    'attributable': 'Please rate the summary (1=worst to 5=best) with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a single number.',
+    'coherence': 'Please rate the summary (1=worst to 5=best) with respect to coherence. A coherent summary is well-structured and well-organized. Return a single number.',
+    'overall': 'Please rate the summary (1=worst to 5=best) with respect to overall preference. A good summary should convey the main ideas in the Article in a concise, logical, and coherent fashion. Return a single number.',
+}
+
+
+@backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.APIError), max_tries=25)
+def chatgpt(messages, model='gpt-4', max_tokens=32):
+    response = openai.ChatCompletion.create(
+        model=model, messages=messages, temperature=0.0, max_tokens=max_tokens
+    )
+    return response['choices'][0]['message']['content']
 
 
 def num_ents(text, nlp):
@@ -33,6 +58,7 @@ def redundancy(text):
 
 
 def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
+    print(f'Starting {name}')
     exp_stats = defaultdict(list)
     tokens = [
         len(word_tokenize(pred)) for pred in preds
@@ -46,15 +72,35 @@ def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
         for k, v in obj.items():
             exp_stats[k].append(v[0])
 
+    for dimension, prompt in SUFFIXES.items():
+        print(f'Starting GPT-4 {dimension} for {name}')
+        scores = []
+        for source, pred in zip(sources, preds):
+            if dimension in {'quality', 'coherence'}:
+                prompt = f'{PREFIX}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
+            else:
+                prompt = f'{PREFIX}\n\nArticle: {source}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
+
+            messages = [
+                # Boost its ego first
+                {'role': 'system', 'content': 'You are an evaluator of text summaries.'},
+                {'role': 'user', 'content': prompt}
+            ]
+
+            scores.append(float(chatgpt(messages=messages, model='gpt-4').strip()))
+            sleep(4)
+
+        exp_stats[f'gpt4_{dimension}_grade'] = scores
+
     # Create the histogram
     sns.histplot(tokens, bins=20, kde=True)
 
     plt.title(f'Distribution of tokens for {name}')
 
     # Save the plot to 'save.png'
-    plt.savefig(f"{name}_tokens_hist.png")
+    # plt.savefig(f"{name}_tokens_hist.png")
 
-    plt.clf()
+    # plt.clf()
 
     frags = [compute_frags({'source': source, 'prediction': pred}) for source, pred in zip(sources, preds)]
 
@@ -103,9 +149,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('-overwrite', default=False, action='store_true')
-    parser.add_argument('--max_examples', default=1000, type=int)
-    parser.add_argument('--model_class', default='gpt4', choices=['llama', 'gpt4'])
-    parser.add_argument('--out_fn', default='~/Desktop/s2l_data/metrics.json')
+    parser.add_argument('--max_examples', default=100, type=int)
+    parser.add_argument('--out_fn', default='llama_metrics.json')
 
     args = parser.parse_args()
 
@@ -116,10 +161,10 @@ if __name__ == '__main__':
 
     nlp = spacy.load("en_core_web_sm")
 
-    EXPERIMENTS = GPT4_EXPERIMENTS if args.model_class == 'gpt4' else LLAMA_EXPERIMENTS
-    get_fns = get_gpt4_fns if args.model_class == 'gpt4' else get_llama_fns
-    get_preds = get_gpt4_preds if args.model_class == 'gpt4' else get_llama_preds
-    split = 'train' if args.model_class == 'gpt4' else 'test'
+    EXPERIMENTS = LLAMA_EXPERIMENTS
+    get_fns = get_llama_fns
+    get_preds = get_llama_preds
+    split = 'test'
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
@@ -166,20 +211,56 @@ if __name__ == '__main__':
 
     out = {'id': shared_ids}
 
-    compute_exp(nlp, rouge, 'reference', sources, source_tokens, references, references)
+    # compute_exp(nlp, rouge, 'reference', sources, source_tokens, references, references)
+
+    id2preds = defaultdict(dict)
 
     for exp in EXPERIMENTS:
         preds = [get_preds(exp, id) for id in shared_ids]
-        num_preds_per = len(preds[0])
-        for step in range(num_preds_per):
-            step_preds = [pred[step] for pred in preds if step < len(pred)]
-            if num_preds_per == 1:
-                name = exp[0]
-            else:
-                names = ['Initial', 'Step 1', 'Step 2', 'Step 3', 'Step 4']
-                name = names[step]
-            out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, step_preds)
+        name = exp[0]
+        out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, preds)
+
+        for id, pred in zip(shared_ids, preds):
+            id2preds[id][exp[0]] = pred
 
     with open(args.out_fn, 'w') as fd:
         json.dump(out, fd)
 
+    outputs = []
+    metas = []
+    rand_outputs = []
+    for j, id in enumerate(shared_ids):
+        row = f'ID: {id}\n\n'
+        article = id2article[id]
+        row += f'Article:\n{article}\n\n'
+        for name in [x[0] for x in EXPERIMENTS]:
+            row += f'Summary {name}: {id2preds[id][name]}\n\n'
+
+        row += 'Preference:\n'
+        row += 'Reason:\n\n'
+        outputs.append(row)
+
+        order = np.arange(3)
+        np.random.shuffle(order)
+
+        ordered_names = [EXPERIMENTS[rand_idx][0] for rand_idx in order]
+
+        dense_random = [id2preds[id][name] for name in ordered_names]
+        meta = {'idx': j, 'id': id, 'order': ','.join(ordered_names)}
+        for rank, name in enumerate(ordered_names):
+            meta[f'Summary {rank + 1}'] = name
+        metas.append(meta)
+        rand_row = f'ID: {id}\n\n'
+        rand_row += f'Article:\n{article}\n\n'
+        for i, d in enumerate(dense_random):
+            rand_row += f'Summary {i + 1}: {d}\n\n'
+        rand_row += 'Preference:\n'
+        rand_row += 'Reason:\n\n'
+        rand_outputs.append(rand_row)
+
+    delim = '*' * 75 + '\n\n'
+    with open('llama_oracle.txt', 'w') as fd:
+        fd.write(delim.join(outputs))
+
+    with open('llama_human.txt', 'w') as fd:
+        fd.write(delim.join(rand_outputs))

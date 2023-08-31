@@ -1,7 +1,7 @@
 import os
 
 from datasets import load_dataset, load_from_disk
-import ast
+from time import sleep
 import backoff
 
 from tqdm import tqdm
@@ -18,11 +18,13 @@ from data_utils import *
 
 PREFIX = 'Here is an Article along with several possible summaries for the article.'
 SUFFIXES = {
-    'informative': 'Please rank the summaries from best to worst with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a JSON list of integers.',
-    'quality': 'Please rank the summaries from best to worst with respect to quality. A high quality summary is comprehensible and understandable. Return a JSON list of integers.',
-    'attributable': 'Please rank the summaries from best to worst with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a JSON list of integers.',
-    'coherence': 'Please rank the summaries from best to worst with respect to coherence. A coherent summary is well-structured and well-organized. Return a JSON list of integers.',
-    'overall': 'Please rank the summaries from best to worst with respect to overall preference. A good summary should convey the main ideas in the Article in a concise, logical, and coherent fashion. Return a JSON list of integers.',
+    'informative': 'Please rate the summaries (1=worst to 5=best) with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a JSON list of integers.',
+    'quality': 'Please rate the summaries (1=worst to 5=best) with respect to quality. A high quality summary is comprehensible and understandable. Return a JSON list of integers.',
+    'attributable': 'Please rate the summaries (1=worst to 5=best) with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a JSON list of integers.',
+    'coherence': 'Please rate the summaries (1=worst to 5=best) with respect to coherence. A coherent summary is well-structured and well-organized. Return a JSON list of integers.',
+    'overall': 'Please rate the summaries (1=worst to 5=best) with respect to overall preference. A good summary should convey the main ideas in the Article in a concise, logical, and coherent fashion. Return a JSON list of integers.',
+    'detail': 'Please rate the summaries (1=worst to 5=best) with respect to the right level of detail. If the summary includes too many or too few details, give a low score. Return a JSON list of integers.',
+    # 'balanced': 'Please rate the summaries (1=worst to 5=best) with respect to how well it how well it balances detail with readability. A well-balanced summary should include important details without being overly dense and hard to follow.\n\nPenalize overly dense summaries with awkward syntax.\n\nPenalize summaries which are not self-contained and can only be understand if supplied the Article.\n\nReturn a JSON list of integers.',
 }
 
 
@@ -39,14 +41,13 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--dimension', default='informative')
     parser.add_argument('-overwrite', default=False, action='store_true')
-    parser.add_argument('-reversed', default=False, action='store_true')
 
     args = parser.parse_args()
 
     EXPERIMENTS = GPT4_EXPERIMENTS
     get_fns = get_gpt4_fns
     get_preds = get_gpt4_preds
-    split = 'train'
+    split = 'test'
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
@@ -59,10 +60,7 @@ if __name__ == '__main__':
     shared_ids = set([x[0] for x in experiment_fns[0]])
     shared_ids = list(sorted(list(shared_ids)))
 
-    if args.reversed:
-        shared_ids = shared_ids[::-1]
-
-    eval_dir = os.path.expanduser(f'~/Desktop/s2l_data/cnn/dense_train_{args.dimension}')
+    eval_dir = os.path.expanduser(f'~/Desktop/s2l_data/cnn/dense_train_v2_{args.dimension}')
     os.makedirs(eval_dir, exist_ok=True)
 
     print('Reading in dataset...')
@@ -88,32 +86,27 @@ if __name__ == '__main__':
     sources = [id2article[id] for id in shared_ids]
 
     from collections import defaultdict
-    rankings = defaultdict(list)
+    all_likerts = defaultdict(list)
     NAMES = ['Initial', 'Step 1', 'Step 2', 'Step 3', 'Step 4']
 
     for id in tqdm(shared_ids):
         out_fn = os.path.join(eval_dir, f'{id}.json')
-        if os.path.exists(out_fn):
+        if os.path.exists(out_fn) and not args.overwrite:
             print(f'Skipping {out_fn}')
             with open(out_fn, 'r') as fd:
-                ranking = json.load(fd)
+                likerts = json.load(fd)
         else:
-            preds = get_preds(EXPERIMENTS[0], id)[:4]
-            rand_order = np.arange(len(preds))
-            np.random.shuffle(rand_order)
-
-            preds_rand = [preds[i] for i in rand_order]
-            experiments_rand = [NAMES[i] for i in rand_order]
-
-            type_map = {i + 1: t for i, t in enumerate(experiments_rand)}
-
+            preds = get_preds(EXPERIMENTS[0], id)
             pred_str = '\n\n'.join([
-                f'Summary {i + 1}: {s}' for i, s in enumerate(preds_rand)
+                f'Summary {i + 1}: {s}' for i, s in enumerate(preds)
             ])
 
             article = id2article[id]
 
-            prompt = f'{PREFIX}\n\nArticle: {article}\n\n{pred_str}\n\n{SUFFIXES[args.dimension]}'
+            if args.dimension in {'quality', 'coherence'}:
+                prompt = f'{PREFIX}\n\n{pred_str}\n\n{SUFFIXES[args.dimension]}'
+            else:
+                prompt = f'{PREFIX}\n\nArticle: {article}\n\n{pred_str}\n\n{SUFFIXES[args.dimension]}'
 
             messages = [
                 # Boost its ego first
@@ -123,15 +116,16 @@ if __name__ == '__main__':
 
             output = chatgpt(messages=messages, model='gpt-4')
             try:
-                output = list(map(int, json.loads(output.split('\n')[0])))
-                ranking = [type_map[i] for i in output]
+                likerts = list(map(int, json.loads(output.split('\n')[0])))
             except:
                 print(f'Could not parse output --> {output}')
                 continue
 
             with open(out_fn, 'w') as fd:
-                json.dump(ranking, fd)
+                json.dump(likerts, fd)
 
-        for rank_idx, name in enumerate(ranking):
-            rankings[name].append(rank_idx + 1)
-            print(name, np.mean(rankings[name]))
+            sleep(1)
+
+        for likert, name in zip(likerts, NAMES):
+            all_likerts[name].append(likert)
+            print(name, np.mean(all_likerts[name]))

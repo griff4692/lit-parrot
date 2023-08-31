@@ -29,6 +29,8 @@ List out the unique named entities in the Summary.
 Return a valid python list of strings ([] and double quotes "").
 """
 
+NAMES = ['Initial', 'Step 1', 'Step 2', 'Step 3', 'Step 4']
+
 
 @backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.APIError, openai.error.ServiceUnavailableError), max_tries=20)
 def chatgpt(messages, model='gpt-4', max_tokens=200):
@@ -43,6 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('-overwrite', default=False, action='store_true')
     parser.add_argument('--max_examples', default=100, type=int)
+    parser.add_argument('-reversed', default=False, action='store_true')
 
     args = parser.parse_args()
 
@@ -62,6 +65,9 @@ if __name__ == '__main__':
     shared_ids = set([x[0] for x in experiment_fns[0]])
     shared_ids = list(sorted(list(shared_ids)))
     assert len(shared_ids) >= args.max_examples
+
+    if args.reversed:
+        shared_ids = shared_ids[::-1]
 
     entity_dir = os.path.expanduser(f'~/Desktop/s2l_data/human_dense_entity')
     os.makedirs(entity_dir, exist_ok=True)
@@ -89,7 +95,7 @@ if __name__ == '__main__':
     sources = [id2article[id] for id in shared_ids]
 
     output = {}
-    nums = [[], [], [], []]
+    nums = [[], [], [], [], []]
 
     for id in tqdm(shared_ids):
         out_fn = os.path.join(entity_dir, f'{id}.json')
@@ -100,7 +106,7 @@ if __name__ == '__main__':
         else:
             preds = get_preds(EXPERIMENTS[0], id)
             row = []
-            for step in range(4):
+            for step in range(5):
                 prompt = PROMPT.replace("{{ARTICLE}}", id2article[id])
                 prompt = prompt.replace("{{SUMMARY}}", preds[step])
                 initial_messages = [
@@ -114,6 +120,6 @@ if __name__ == '__main__':
             with open(out_fn, 'w') as fd:
                 json.dump(row, fd)
 
-        for step in range(4):
+        for step in range(5):
             nums[step].append(len(row[step]))
-            print(step, np.mean(nums[step]))
+            print(NAMES[step], np.mean(nums[step]))

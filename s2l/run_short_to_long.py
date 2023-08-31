@@ -2,6 +2,7 @@ import os
 
 import argparse
 import json
+from time import sleep
 
 import openai
 import numpy as np
@@ -152,6 +153,7 @@ if __name__ == '__main__':
             ]
 
             predictions = chatgpt(initial_messages, model=args.model)
+            sleep(1)
 
             from nltk import word_tokenize
             arr.append(len(word_tokenize(predictions)))

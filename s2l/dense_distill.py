@@ -1,10 +1,9 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datasets import Dataset, DatasetDict
 import os
 from glob import glob
 import argparse
 from oa_secrets import HF_ACCESS_TOKEN
-import numpy as np
 import ujson
 from tqdm import tqdm
 
@@ -16,7 +15,7 @@ INSTRUCTIONS = {
 }
 
 
-NAMES = ['Initial', 'Step 1', 'Step 2', 'Step 3']
+NAMES = ['Initial', 'Step 1', 'Step 2', 'Step 3', 'Step 4']
 
 
 def form(input, task_name='straight'):
@@ -25,7 +24,7 @@ def form(input, task_name='straight'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Evaluation')
-    parser.add_argument('--experiment', default='dense_train')
+    parser.add_argument('--experiment', default='dense_train_v2')
     args = parser.parse_args()
 
     in_dir = os.path.expanduser(f'~/Desktop/s2l_data/cnn/{args.experiment}')
@@ -33,13 +32,13 @@ if __name__ == '__main__':
     ids = list(set([x.split('/')[-1].replace('.json', '') for x in fns]))
 
     stats_fn = os.path.expanduser('~/Desktop/s2l_data/cnn/dense_train_stats.json')
-    quality_dir = os.path.expanduser('~/Desktop/s2l_data/cnn/dense_train_quality')
+    quality_dir = os.path.expanduser('~/Desktop/s2l_data/cnn/dense_train_v2_quality')
     with open(stats_fn, 'r') as fd:
         stats = ujson.load(fd)
 
     id2stats = {}
     for idx, id in enumerate(stats['id']):
-        id2stats[id] = [stats[name]['num_ents'][idx] for name in NAMES]
+        id2stats[id] = [stats[name]['num_ents_per_token'][idx] for name in NAMES]
 
     top_outputs = []
     outputs = {'train': []}
@@ -52,9 +51,11 @@ if __name__ == '__main__':
         defaultdict(list),
         defaultdict(list),
         defaultdict(list),
+        defaultdict(list),
     ]
 
     cts = []
+    unique_ids = set()
     for fn in tqdm(fns, total=len(fns)):
         suffix = fn.split('/')[-1]
         id = suffix.replace('.json', '')
@@ -65,31 +66,33 @@ if __name__ == '__main__':
             result = ujson.load(fd)
             article = result['article'].strip()
             reference = result['highlights'].strip()
-            predictions = result['prediction'][:4]
+            predictions = result['prediction']
             n = len(predictions)
 
-            num_ents = id2stats[id]
+            density = id2stats[id]
             quality_fn = os.path.join(quality_dir, f'{id}.json')
             with open(quality_fn, 'r') as fd:
-                top_quality = ujson.load(fd)[0]
+                quality_scores = ujson.load(fd)
+            quality_systems = [NAMES[i] for i in range(len(quality_scores)) if quality_scores[i] == 5]
 
-            ent_max_systems = [NAMES[i] for i in range(len(num_ents)) if num_ents[i] == max(num_ents)]
+            ent_max_systems = [NAMES[i] for i in range(len(density)) if density[i] >= 0.125]
+            intersection = list(sorted(list(set(quality_systems).intersection(set(ent_max_systems)))))
 
-            if top_quality not in ent_max_systems:
-                continue
+            for system in intersection:
+                top_summary = predictions[NAMES.index(system)]
 
-            top_summary = predictions[NAMES.index(top_quality)]
+                unique_ids.add(id)
 
-            outputs[split].append({
-                'id': id,
-                'prompt': form(article),
-                'completion': top_summary,
-                'step': top_quality,
-            })
+                outputs[split].append({
+                    'id': id,
+                    'prompt': form(article),
+                    'completion': top_summary,
+                    'step': system,
+                })
 
-            cts.append(top_quality)
+                cts.append(system)
 
-    from collections import Counter
+    print(f'Unique IDS: {len(unique_ids)}')
     print(Counter(cts).most_common())
     print('Building dataset from list...')
     outputs = DatasetDict({
