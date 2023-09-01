@@ -3,12 +3,12 @@ from datasets import load_dataset, load_from_disk
 from evaluate import load
 from nltk import word_tokenize, sent_tokenize
 
+from time import sleep
 import spacy
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import chain
 from scipy.stats import pearsonr
-from time import sleep
 from nltk.util import ngrams
 from rouge_utils import *
 from fragments import compute_frags
@@ -72,25 +72,25 @@ def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
         for k, v in obj.items():
             exp_stats[k].append(v[0])
 
-    for dimension, prompt in SUFFIXES.items():
-        print(f'Starting GPT-4 {dimension} for {name}')
-        scores = []
-        for source, pred in zip(sources, preds):
-            if dimension in {'quality', 'coherence'}:
-                prompt = f'{PREFIX}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
-            else:
-                prompt = f'{PREFIX}\n\nArticle: {source}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
-
-            messages = [
-                # Boost its ego first
-                {'role': 'system', 'content': 'You are an evaluator of text summaries.'},
-                {'role': 'user', 'content': prompt}
-            ]
-
-            scores.append(float(chatgpt(messages=messages, model='gpt-4').strip()))
-            sleep(4)
-
-        exp_stats[f'gpt4_{dimension}_grade'] = scores
+    # for dimension, prompt in SUFFIXES.items():
+    #     print(f'Starting GPT-4 {dimension} for {name}')
+    #     scores = []
+    #     for source, pred in zip(sources, preds):
+    #         if dimension in {'quality', 'coherence'}:
+    #             prompt = f'{PREFIX}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
+    #         else:
+    #             prompt = f'{PREFIX}\n\nArticle: {source}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
+    #
+    #         messages = [
+    #             # Boost its ego first
+    #             {'role': 'system', 'content': 'You are an evaluator of text summaries.'},
+    #             {'role': 'user', 'content': prompt}
+    #         ]
+    #
+    #         scores.append(float(chatgpt(messages=messages, model='gpt-4').strip()))
+    #         sleep(1)
+    #
+    #     exp_stats[f'gpt4_{dimension}_grade'] = scores
 
     # Create the histogram
     sns.histplot(tokens, bins=20, kde=True)
@@ -264,3 +264,6 @@ if __name__ == '__main__':
 
     with open('llama_human.txt', 'w') as fd:
         fd.write(delim.join(rand_outputs))
+
+    metas = pd.DataFrame(metas)
+    metas.to_csv('llama_meta.csv', index=False)

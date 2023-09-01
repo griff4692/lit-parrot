@@ -4,7 +4,8 @@ from glob import glob
 
 
 LLAMA_EXPERIMENTS = [
-    ['dense_llama_chat', 'dense_llama_chat', 'cnn_final'],
+    ['dense_llama_chat', 'dense_llama_chat', 'cnn'],
+    ['densify_llama_chat', 'densify_llama_chat', 'cnn'],
     ['baseline_llama_chat', 'baseline_llama_chat', 'cnn'],
     ['zeroshot_llama_chat', 'zeroshot_llama_chat', 'cnn'],
 ]
@@ -46,8 +47,14 @@ def get_gpt4_fns(info):
 
 def get_llama_preds(info, id):
     is_zero = 'zero' in info[0]
+    is_densify = 'densify' in info[0]
     if is_zero:
         fn = os.path.expanduser('~/lit-parrot/out/adapter_v2/' + info[1] + f'/{info[2]}/{id}_summarize.txt')
+    elif is_densify:
+        fn = os.path.expanduser('~/lit-parrot/out/adapter_v2/' + info[1] + f'/results/{info[2]}/{id}.txt')
+        with open(fn, 'r') as fd:
+            lines = [x.strip() for x in fd.read().strip().split('\n') if len(x.strip()) > 0]
+            return lines[-1]
     else:
         fn = os.path.expanduser('~/lit-parrot/out/adapter_v2/' + info[1] + f'/results/{info[2]}/{id}_summarize.txt')
     with open(fn, 'r') as fd:

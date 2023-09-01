@@ -21,6 +21,7 @@ PARROT_MODEL = os.environ['PARROT_MODEL']
 if PARROT_MODEL == 'falcon':
     CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/tiiuae/falcon-7b"))
 else:
+    assert 'llama' in PARROT_MODEL
     CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/meta-llama/Llama-2-7b-hf"))
 IGNORE_INDEX = -1
 MASK_INPUTS = False
@@ -50,7 +51,17 @@ def prepare(
     print(f'Loading dataset...')
 
     if args.dataset == 'dense':
-        train_set = load_dataset('griffin/dense_summ', split='train')
+        train_set = load_dataset('griffin/dense_summ_v2', split='train')
+        n = len(train_set)
+        train_set = train_set.filter(lambda example: example['task'] == 'straight' and example['step'] == 'Step 2')
+        filt_n = len(train_set)
+        print(f'Filtered to {filt_n}/{n}')
+    elif args.dataset == 'densify':
+        train_set = load_dataset('griffin/dense_summ_v2', split='train')
+        n = len(train_set)
+        train_set = train_set.filter(lambda example: example['task'] == 'densify')
+        filt_n = len(train_set)
+        print(f'Filtered to {filt_n}/{n}')
     else:
         assert args.dataset == 'baseline'
         dataset = load_dataset('griffin/baseline_summarization')
@@ -133,6 +144,6 @@ def prepare_sample(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Prepare')
-    parser.add_argument('--dataset', default='dense', choices=['dense', 'baseline'])
+    parser.add_argument('--dataset', default='dense', choices=['dense', 'baseline', 'densify'])
     args = parser.parse_args()
     prepare(args)

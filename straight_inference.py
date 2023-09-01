@@ -74,7 +74,7 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
-    parser.add_argument('--base', default='llama')
+    parser.add_argument('--base', default='llama_chat')
     parser.add_argument('--adapter_path', default='out/adapter_v2/dense_llama_chat')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
