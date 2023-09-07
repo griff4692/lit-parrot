@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 from datasets import load_dataset
+import spacy
+from stats import num_ents
+from nltk import word_tokenize
 
 
 SYSTEMS = [
@@ -25,9 +28,11 @@ def rank_to_num(arr):
 
 
 if __name__ == '__main__':
-    metrics = json.load(open(os.path.expanduser('~/Desktop/s2l_data/metrics.json')))
+    metrics = json.load(open(os.path.expanduser('~/Desktop/s2l_data/human_dense_v3_stats.json')))
 
     labels = pd.read_csv(os.path.expanduser('~/Desktop/s2l_data/Human_Eval_8_25.csv'))
+
+    nlp = spacy.load("en_core_web_sm")
 
     dataset = load_dataset('cnn_dailymail', '3.0.0', split='test')
     id2article = dict(zip(dataset['id'], dataset['article'] if 'article' in dataset.features else dataset['document']))
@@ -35,22 +40,31 @@ if __name__ == '__main__':
     id2source_toks = {}
     id2label = {}
     id2density_label = {}
-    density_by_annotator = {'Griffin': [], 'Faisal': [], 'Alex': []}
+    id2source_density = {}
+    id2source_ents = {}
+    density_by_annotator = {'Griffin': [], 'Faisal': [], 'Alex': [], 'Eric': []}
 
     for row in labels.to_dict('records')[:100]:
         l1 = row['Griffin Mapped']
         l2 = row['Faisal Mapped']
         l3 = row['Alex Mapped']
+        l4 = row['Eric Mapped']
         l_agg = [0, 0, 0, 0, 0]
         l_agg[SYSTEMS.index(l1)] += 1
         l_agg[SYSTEMS.index(l2)] += 1
         l_agg[SYSTEMS.index(l3)] += 1
-        l_agg = [x / 3.0 for x in l_agg]
+        l_agg[SYSTEMS.index(l4)] += 1
+        l_agg = [x / 4.0 for x in l_agg]
         id2label[row['id']] = l_agg
-        id2density_label[row['id']] = sum([SYSTEMS.index(l1), SYSTEMS.index(l2), SYSTEMS.index(l3)]) / 3.0
-        id2source_toks[row['id']] = len(id2article[row['id']].split(' '))
+        id2density_label[row['id']] = sum([SYSTEMS.index(l1), SYSTEMS.index(l2), SYSTEMS.index(l3), SYSTEMS.index(l4)]) / 4.0
+        article_toks = word_tokenize(id2article[row['id']])
+        id2source_toks[row['id']] = len(article_toks)
+        id2source_ents[row['id']] = num_ents(id2article[row['id']], nlp=nlp)
+        id2source_density[row['id']] = id2source_ents[row['id']] / id2source_toks[row['id']]
 
     print(pearsonr([id2source_toks[i] for i in id2source_toks], [id2density_label[i] for i in id2source_toks])[0])
+    print(pearsonr([id2source_density[i] for i in id2source_toks], [id2density_label[i] for i in id2source_toks])[0])
+    print(pearsonr([id2source_ents[i] for i in id2source_toks], [id2density_label[i] for i in id2source_toks])[0])
 
     dimensions = [
         'informative',
@@ -64,6 +78,8 @@ if __name__ == '__main__':
         os.path.expanduser(f'~/Desktop/s2l_data/cnn/human_dense_v3_{dimension}') for dimension in dimensions
     ]
 
+    nlp = spacy.load('en_core_web_sm')
+
     # Instance Level
     instances = defaultdict(list)
     cols = [k for k, v in metrics['Initial'].items() if type(v) == list]
@@ -71,6 +87,11 @@ if __name__ == '__main__':
     agreement_both = 0
     num_both = 0
     top_systems = []
+
+    selected_densities = []
+
+    all_map = []
+    ent_map = []
 
     for idx, id in enumerate(metrics['id']):
         label = id2label[id]
@@ -83,7 +104,6 @@ if __name__ == '__main__':
         ]
 
         agg_dims = [sum([dim[i] for dim in dims]) / len(dims) for i in range(5)]
-        print(agg_dims)
         if max(agg_dims) >= 4.5:
             intersection = {SYSTEMS[int(np.argmax(agg_dims))]}
         else:
@@ -97,10 +117,15 @@ if __name__ == '__main__':
         # # top_agg = set(top_informative).intersection(set(top_quality)).intersection(set(top_attributable))
         # top_agg = set(top_quality).intersection(set(top_attributable))
         #
-        # density = [metrics[sys]['num_ents_per_token'][idx] for sys in SYSTEMS]
+        density = [metrics[sys]['num_ents_per_token'][idx] for sys in SYSTEMS]
         # ent_max_systems = [SYSTEMS[i] for i in range(len(density)) if density[i] >= 0.125]
         #
         # intersection = list(sorted(list(top_agg.intersection(set(ent_max_systems)))))
+        for l, d, sys in zip(label, density, SYSTEMS):
+            all_map.append({'source_ents': id2source_ents[id], 'target_ents': metrics[sys]['num_ents'][idx]})
+            for j in range(int(l * 4)):
+                ent_map.append({'source_ents': id2source_ents[id], 'target_ents': metrics[sys]['num_ents'][idx]})
+                selected_densities.append(d)
 
         for system in intersection:
             num_both += 1
@@ -135,3 +160,25 @@ if __name__ == '__main__':
 
     print(agreement_both, num_both, None if num_both == 0 else round(agreement_both / num_both, 2))
     print(Counter(top_systems).most_common())
+    print(np.mean(selected_densities))
+
+    ent_map = pd.DataFrame(ent_map)
+    ent_map.to_csv('source_to_target_ents.csv', index=False)
+
+    all_map = pd.DataFrame(all_map)
+    all_map.to_csv('source_to_target_ents_all.csv', index=False)
+
+    buckets = [25, 50, 75, 100, 125, 150, 175, 2000]
+    target_ents = []
+
+    all_ents = []
+    for i, bucket_max in enumerate(buckets):
+        min_val = 0 if i == 0 else buckets[i - 1]
+        subdf = ent_map[(ent_map['source_ents'] >= min_val) & (ent_map['source_ents'] < bucket_max)]
+        alldf = all_map[(all_map['source_ents'] >= min_val) & (all_map['source_ents'] < bucket_max)]
+        print(len(subdf))
+        target_ents.append(subdf['target_ents'].mean())
+        all_ents.append(alldf['target_ents'].mean())
+
+    print(target_ents)
+    print(all_ents)

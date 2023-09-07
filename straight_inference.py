@@ -2,6 +2,7 @@ import argparse
 import os
 
 import json
+import regex as re
 import sys
 import time
 from datasets import load_dataset, load_from_disk
@@ -9,6 +10,7 @@ from functools import partial
 from pathlib import Path
 import numpy as np
 
+import spacy
 import lightning as L
 import torch
 from tqdm import tqdm
@@ -27,7 +29,8 @@ from lit_gpt.utils import lazy_load, quantization
 
 import glob
 
-from s2l.dense_distill import ALPACA_HEADER, INSTRUCTIONS
+from s2l.straight_dense_distill import ALPACA_HEADER, INSTRUCTIONS
+from s2l.run_straight_dense import target_k
 from s2l.baseline_distill import INSTRUCTIONS as BASELINE_INSTRUCTIONS
 
 
@@ -35,10 +38,6 @@ def get_latest_file(directory):
     # Get list of all files, and sort them by modified time descending
     files = sorted(glob.glob(os.path.join(directory, '*.pth')), key=os.path.getmtime, reverse=True)
     # If list is not empty, return the first file (which will have the latest timestamp)
-
-    # # TODO remove this - this is bad!!!!
-    # print('\n\n\nWARNING!!! SELECTING ARBITRARY CHECKPOINT\n\n\n')
-    # files = [x for x in files if '010239' in x]
 
     if files:
         return files[0]
@@ -69,13 +68,16 @@ def get_completion(args, model, tokenizer, prompt, max_new_tokens=None):
     model.reset_cache()
     output = tokenizer.decode(y)
     _, prediction = output.split('### Response:')
+    if 'SUMMARY:' in prediction:
+        print(prediction)
+        return re.findall(r'SUMMARY:(.*)$', prediction)[0].strip()
     return prediction.strip()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('')
     parser.add_argument('--base', default='llama_chat')
-    parser.add_argument('--adapter_path', default='out/adapter_v2/dense_llama_chat')
+    parser.add_argument('--adapter_path', default='out/adapter_v2/straight_dense_llama_chat')
     parser.add_argument('--devices', default=1, type=int)
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('--max_new_tokens', default=160, type=int)
@@ -102,8 +104,15 @@ if __name__ == '__main__':
     args.checkpoint_dir = Path(args.checkpoint_dir)
     torch.set_float32_matmul_precision("high")
 
-    is_dense = args.adapter_path is not None and 'dense' in args.adapter_path
-    print(f'IS DENSE -> {is_dense}')
+    if args.adapter_path is None:
+        prompt_type = 'zeroshot'
+    elif 'straight_dense_w_plan' in args.adapter_path:
+        prompt_type = 'straight_w_plan'
+    elif 'straight_dense' in args.adapter_path:
+        prompt_type = 'straight'
+    else:
+        prompt_type = 'baseline'
+    print(f'Prompt Type -> {prompt_type}')
 
     if args.adapter_path is None or len(args.adapter_path) == 0:
         adapter_path = None
@@ -155,6 +164,7 @@ if __name__ == '__main__':
     model = fabric.setup(model)
 
     tokenizer = Tokenizer(args.checkpoint_dir)
+    nlp = spacy.load("en_core_web_sm")
 
     print(args.max_new_tokens)
     print('Reading in dataset...')
@@ -184,18 +194,32 @@ if __name__ == '__main__':
             article = ' '.join(article_toks[:args.max_article_toks])
 
         summarize_input = f'Article: {article}'
-        if adapter_path is None:
+        addl_toks = 0
+        if prompt_type == 'zeroshot':
             instruction = 'Write a VERY short summary of the Article.\n\nDo not exceed 70 words.'
+        elif prompt_type == 'straight':
+            instruction = INSTRUCTIONS['straight']
+            _, target_ents = target_k(article, nlp)
+            instruction = instruction.replace('{{K}}', str(target_ents))
+            print(instruction)
+        elif prompt_type == 'straight_w_plan':
+            addl_toks = 80
+            instruction = INSTRUCTIONS['straight_w_plan']
+            _, target_ents = target_k(article, nlp)
+            instruction = instruction.replace('{{K}}', str(target_ents))
+            print(instruction)
         else:
-            instruction = INSTRUCTIONS['straight'] if is_dense else BASELINE_INSTRUCTIONS['summarize']
-        summarze_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{instruction}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
+            assert prompt_type == 'baseline'
+            instruction = BASELINE_INSTRUCTIONS['summarize']
+        summarize_prompt = f"{ALPACA_HEADER}\n\n### Instruction:\n{instruction}\n\n### Input:\n{summarize_input}\n\n### Response:\n"
         predictions = []
 
         try:
             for _ in range(args.return_candidates):
                 prediction = remove_trailing_sent_frag(get_completion(
-                    args, model, tokenizer, summarze_prompt, max_new_tokens=args.max_new_tokens
+                    args, model, tokenizer, summarize_prompt, max_new_tokens=args.max_new_tokens + addl_toks
                 ))
+                assert len(prediction) > 0
                 predictions.append(prediction)
         except Exception as e:
             print(e)

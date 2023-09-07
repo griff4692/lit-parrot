@@ -103,7 +103,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='cnn')
     parser.add_argument('-overwrite', default=False, action='store_true')
-    parser.add_argument('--max_examples', default=1000, type=int)
+    parser.add_argument('--max_examples', default=100, type=int)
     parser.add_argument('--model_class', default='gpt4', choices=['llama', 'gpt4'])
     parser.add_argument('--out_fn', default='~/Desktop/s2l_data/metrics.json')
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     EXPERIMENTS = GPT4_EXPERIMENTS if args.model_class == 'gpt4' else LLAMA_EXPERIMENTS
     get_fns = get_gpt4_fns if args.model_class == 'gpt4' else get_llama_fns
     get_preds = get_gpt4_preds if args.model_class == 'gpt4' else get_llama_preds
-    split = 'train' if args.model_class == 'gpt4' else 'test'
+    split = 'test' if args.model_class == 'gpt4' else 'test'
 
     experiment_fns = [
         get_fns(info) for info in EXPERIMENTS
@@ -180,6 +180,6 @@ if __name__ == '__main__':
                 name = names[step]
             out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, step_preds)
 
-    with open(args.out_fn, 'w') as fd:
-        json.dump(out, fd)
+    # with open(args.out_fn, 'w') as fd:
+    #     json.dump(out, fd)
 

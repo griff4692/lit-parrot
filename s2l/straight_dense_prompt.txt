@@ -1,0 +1,19 @@
+Article: {{ARTICLE}}
+
+You will generate a very short, concise, entity-dense summary of the above Article.
+
+A Salient Entity is:
+- Relevant: to the main story.
+- Specific: descriptive yet concise (5 words or fewer).
+- Novel: not in the previous summary.
+- Faithful: present in the Article.
+- Anywhere: located anywhere in the Article.
+
+Guidelines:
+- Identify the top {{K}} most salient entities before generating a summary.
+- Make sure every salient entity is included in the summary.
+- Make space with fusion, compression, and removal of uninformative phrases like "the article discusses".
+- Summaries should be coherent and self-contained, e.g., easily understood without the Article.
+- Be very concise. Do NOT exceed 65 words.
+
+Return a JSON dictionary with keys "entities" and "summary". "entities" should be a list of {{K}} strings.

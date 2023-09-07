@@ -1,5 +1,3 @@
-import os
-
 from datasets import load_dataset, load_from_disk
 from time import sleep
 import backoff
@@ -18,13 +16,11 @@ from data_utils import *
 
 PREFIX = 'Here is an Article along with several possible summaries for the article.'
 SUFFIXES = {
-    'informative': 'Please rate the summaries (1=worst to 5=best) with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a JSON list of integers.',
-    'quality': 'Please rate the summaries (1=worst to 5=best) with respect to quality. A high quality summary is comprehensible and understandable. Return a JSON list of integers.',
-    'attributable': 'Please rate the summaries (1=worst to 5=best) with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a JSON list of integers.',
-    'coherence': 'Please rate the summaries (1=worst to 5=best) with respect to coherence. A coherent summary is well-structured and well-organized. Return a JSON list of integers.',
-    'overall': 'Please rate the summaries (1=worst to 5=best) with respect to overall preference. A good summary should convey the main ideas in the Article in a concise, logical, and coherent fashion. Return a JSON list of integers.',
-    'detail': 'Please rate the summaries (1=worst to 5=best) with respect to the right level of detail. If the summary includes too many or too few details, give a low score. Return a JSON list of integers.',
-    # 'balanced': 'Please rate the summaries (1=worst to 5=best) with respect to how well it how well it balances detail with readability. A well-balanced summary should include important details without being overly dense and hard to follow.\n\nPenalize overly dense summaries with awkward syntax.\n\nPenalize summaries which are not self-contained and can only be understand if supplied the Article.\n\nReturn a JSON list of integers.',
+    'informative': 'Please rate the summary (1=worst to 5=best) with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a JSON list of integers.',
+    'quality': 'Please rate the summary (1=worst to 5=best) with respect to quality. A high quality summary is comprehensible and understandable. Return a JSON list of integers.',
+    'attributable': 'Please rate the summary (1=worst to 5=best) with respect to attribution. Is all the information in the summary fully attributable to the Article? Return a JSON list of integers.',
+    'coherence': 'Please rate the summary (1=worst to 5=best) with respect to coherence. A coherent summary is well-structured and well-organized. Return a JSON list of integers.',
+    'overall': 'Please rate the summary (1=worst to 5=best) with respect to overall preference. A good summary should convey the main ideas in the Article in a concise, logical, and coherent fashion. Return a JSON list of integers.',
 }
 
 
@@ -60,7 +56,7 @@ if __name__ == '__main__':
     shared_ids = set([x[0] for x in experiment_fns[0]])
     shared_ids = list(sorted(list(shared_ids)))
 
-    eval_dir = os.path.expanduser(f'~/Desktop/s2l_data/cnn/dense_train_v2_{args.dimension}')
+    eval_dir = os.path.expanduser(f'~/Desktop/s2l_data/cnn/human_dense_v3_{args.dimension}')
     os.makedirs(eval_dir, exist_ok=True)
 
     print('Reading in dataset...')

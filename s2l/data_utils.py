@@ -4,8 +4,8 @@ from glob import glob
 
 
 LLAMA_EXPERIMENTS = [
-    ['dense_llama_chat', 'dense_llama_chat', 'cnn'],
-    ['densify_llama_chat', 'densify_llama_chat', 'cnn'],
+    ['dense_llama_chat', 'straight_dense_llama_chat', 'cnn'],
+    ['dense_w_plan_llama_chat', 'straight_dense_w_plan_llama_chat', 'cnn'],
     ['baseline_llama_chat', 'baseline_llama_chat', 'cnn'],
     ['zeroshot_llama_chat', 'zeroshot_llama_chat', 'cnn'],
 ]
@@ -13,9 +13,8 @@ LLAMA_EXPERIMENTS = [
 
 GPT4_EXPERIMENTS = [
     ['human_dense_v3'],
-    # ['dense_train_v2'],
-    # ['gpt4_length', 'length_test'],
-    # ['gpt4_length_w_dense', 'length_w_dense_test'],
+    # ['baseline_human_test'],
+    # ['human_straight_dense_v2'],
 ]
 
 GPT4_DIR = os.path.expanduser(os.path.join('~', 'Desktop', 's2l_data', 'cnn'))

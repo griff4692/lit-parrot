@@ -17,12 +17,8 @@ from datasets import load_dataset
 
 
 MAIN_DIR = os.path.expanduser(f"~/lit-parrot")
-PARROT_MODEL = os.environ['PARROT_MODEL']
-if PARROT_MODEL == 'falcon':
-    CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/tiiuae/falcon-7b"))
-else:
-    assert 'llama' in PARROT_MODEL
-    CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/meta-llama/Llama-2-7b-hf"))
+PARROT_MODEL = 'llama'
+CHECKPOINT_DIR = Path(os.path.join(MAIN_DIR, "checkpoints/meta-llama/Llama-2-7b-hf"))
 IGNORE_INDEX = -1
 MASK_INPUTS = False
 SEED = 42
@@ -54,6 +50,18 @@ def prepare(
         train_set = load_dataset('griffin/dense_summ_v2', split='train')
         n = len(train_set)
         train_set = train_set.filter(lambda example: example['task'] == 'straight' and example['step'] == 'Step 2')
+        filt_n = len(train_set)
+        print(f'Filtered to {filt_n}/{n}')
+    elif args.dataset == 'straight_dense':
+        train_set = load_dataset('griffin/straight_dense_summ', split='train')
+        n = len(train_set)
+        train_set = train_set.filter(lambda example: example['task'] == 'straight')
+        filt_n = len(train_set)
+        print(f'Filtered to {filt_n}/{n}')
+    elif args.dataset == 'straight_dense_w_plan':
+        train_set = load_dataset('griffin/straight_dense_summ', split='train')
+        n = len(train_set)
+        train_set = train_set.filter(lambda example: example['task'] == 'straight_w_plan')
         filt_n = len(train_set)
         print(f'Filtered to {filt_n}/{n}')
     elif args.dataset == 'densify':
@@ -144,6 +152,6 @@ def prepare_sample(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Prepare')
-    parser.add_argument('--dataset', default='dense', choices=['dense', 'baseline', 'densify'])
+    parser.add_argument('--dataset', default='straight_dense', choices=['dense', 'baseline', 'densify', 'straight_dense', 'straight_dense_w_plan'])
     args = parser.parse_args()
     prepare(args)

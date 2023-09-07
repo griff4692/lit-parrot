@@ -1,3 +1,4 @@
+import os.path
 from collections import defaultdict
 from datasets import load_dataset, load_from_disk
 from evaluate import load
@@ -5,6 +6,7 @@ from nltk import word_tokenize, sent_tokenize
 
 from time import sleep
 import spacy
+import json
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import chain
@@ -22,7 +24,6 @@ openai.api_key = OA_KEY
 import backoff
 
 
-PREFIX = 'Here is an Article along with several possible summaries for the article.'
 SUFFIXES = {
     'informative': 'Please rate the summary (1=worst to 5=best) with respect to informativeness. An informative summary captures the important information in the article and presents it accurately and concisely. Return a single number.',
     'quality': 'Please rate the summary (1=worst to 5=best) with respect to quality. A high quality summary is comprehensible and understandable. Return a single number.',
@@ -57,7 +58,7 @@ def redundancy(text):
     }
 
 
-def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
+def compute_exp(args, nlp, rouge, name, sources, source_tokens, references, preds):
     print(f'Starting {name}')
     exp_stats = defaultdict(list)
     tokens = [
@@ -73,22 +74,29 @@ def compute_exp(nlp, rouge, name, sources, source_tokens, references, preds):
             exp_stats[k].append(v[0])
 
     # for dimension, prompt in SUFFIXES.items():
-    #     print(f'Starting GPT-4 {dimension} for {name}')
-    #     scores = []
-    #     for source, pred in zip(sources, preds):
-    #         if dimension in {'quality', 'coherence'}:
-    #             prompt = f'{PREFIX}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
-    #         else:
-    #             prompt = f'{PREFIX}\n\nArticle: {source}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
+    #     dimension_tmp_fn = os.path.join(f'{dimension}_{name}.json')
+    #     if os.path.exists(dimension_tmp_fn) and not args.overwrite:
+    #         with open(dimension_tmp_fn, 'r') as fd:
+    #             scores = json.load(fd)
+    #     else:
+    #         print(f'Starting GPT-4 {dimension} for {name}')
+    #         scores = []
+    #         for source, pred in zip(sources, preds):
+    #             if dimension in {'quality', 'coherence'}:
+    #                 prompt = f'Summary: {pred}\n\n{SUFFIXES[dimension]}'
+    #             else:
+    #                 prompt = f'Article: {source}\n\nSummary: {pred}\n\n{SUFFIXES[dimension]}'
     #
-    #         messages = [
-    #             # Boost its ego first
-    #             {'role': 'system', 'content': 'You are an evaluator of text summaries.'},
-    #             {'role': 'user', 'content': prompt}
-    #         ]
+    #             messages = [
+    #                 # Boost its ego first
+    #                 {'role': 'system', 'content': 'You are an evaluator of text summaries.'},
+    #                 {'role': 'user', 'content': prompt}
+    #             ]
     #
-    #         scores.append(float(chatgpt(messages=messages, model='gpt-4').strip()))
-    #         sleep(1)
+    #             scores.append(float(chatgpt(messages=messages, model='gpt-4').strip()))
+    #             sleep(1)
+    #         with open(dimension_tmp_fn, 'w') as fd:
+    #             json.dump(scores, fd)
     #
     #     exp_stats[f'gpt4_{dimension}_grade'] = scores
 
@@ -211,14 +219,14 @@ if __name__ == '__main__':
 
     out = {'id': shared_ids}
 
-    # compute_exp(nlp, rouge, 'reference', sources, source_tokens, references, references)
+    # compute_exp(args, nlp, rouge, 'reference', sources, source_tokens, references, references)
 
     id2preds = defaultdict(dict)
 
     for exp in EXPERIMENTS:
         preds = [get_preds(exp, id) for id in shared_ids]
         name = exp[0]
-        out[name] = compute_exp(nlp, rouge, name, sources, source_tokens, references, preds)
+        out[name] = compute_exp(args, nlp, rouge, name, sources, source_tokens, references, preds)
 
         for id, pred in zip(shared_ids, preds):
             id2preds[id][exp[0]] = pred
@@ -240,7 +248,7 @@ if __name__ == '__main__':
         row += 'Reason:\n\n'
         outputs.append(row)
 
-        order = np.arange(3)
+        order = np.arange(len(EXPERIMENTS))
         np.random.shuffle(order)
 
         ordered_names = [EXPERIMENTS[rand_idx][0] for rand_idx in order]
